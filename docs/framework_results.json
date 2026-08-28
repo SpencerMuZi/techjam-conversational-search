@@ -1,0 +1,20 @@
+{
+  "dataset": "data/public_set.jsonl",
+  "sample_count": 200,
+  "hit_rate_at_10": 0.925,
+  "mrr": 0.473827,
+  "mttc": 3.835,
+  "efficiency": 0.7165,
+  "technical_score": 0.747948,
+  "reported_token_usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  },
+  "scenario_metrics": {
+    "boundary": {"sample_count": 10, "hit_rate_at_10": 0.8, "mrr": 0.345, "mttc": 4.1},
+    "browsing": {"sample_count": 80, "hit_rate_at_10": 0.95, "mrr": 0.425838, "mttc": 3.5},
+    "buying": {"sample_count": 80, "hit_rate_at_10": 0.95, "mrr": 0.558566, "mttc": 3.35},
+    "intent_override": {"sample_count": 30, "hit_rate_at_10": 0.833333, "mrr": 0.41877, "mttc": 5.933333}
+  }
+}

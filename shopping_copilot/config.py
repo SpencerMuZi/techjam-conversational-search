@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class RouteWeights:
+    """Weights used to fuse retrieval routes for one intent."""
+
+    keyword: float
+    category: float
+    constraints: float
+    semantic: float
+
+
+@dataclass(frozen=True)
+class AgentConfig:
+    """Central configuration for retrieval and dialogue orchestration."""
+
+    retrieval_depth: int = 250
+    rerank_depth: int = 120
+    rrf_k: int = 60
+    clarification_candidate_cutoff: int = 20
+    max_query_terms: int = 48
+    buying_weights: RouteWeights = field(
+        default_factory=lambda: RouteWeights(
+            keyword=1.0,
+            category=1.2,
+            constraints=2.0,
+            semantic=0.5,
+        )
+    )
+    browsing_weights: RouteWeights = field(
+        default_factory=lambda: RouteWeights(
+            keyword=0.8,
+            category=1.2,
+            constraints=1.2,
+            semantic=1.2,
+        )
+    )
+
+    def weights_for(self, route: str) -> RouteWeights:
+        return self.buying_weights if route == "buying" else self.browsing_weights

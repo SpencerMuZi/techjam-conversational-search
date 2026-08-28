@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "techjam-shopping-copilot"
+version = "0.1.0"
+description = "Offline-first conversational shopping agent framework"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["shopping_copilot*", "starter*"]
