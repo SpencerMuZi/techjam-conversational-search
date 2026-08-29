@@ -2,7 +2,11 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .env
+.venv/
+work/
 results.json
+results_*.json
+*.checkpoint.json
 data/catalog.jsonl
 data/releases/
 # Organizer-only code, private evaluation data, manifests, and build reports.

@@ -36,6 +36,7 @@ class SearchContext:
     soft_slots: dict[str, tuple[str, ...]]
     profile_tags: tuple[str, ...]
     current_message: str
+    turn: int = 1
 
     @property
     def hard_values(self) -> tuple[str, ...]:

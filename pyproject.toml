@@ -12,3 +12,6 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 include = ["shopping_copilot*", "starter*"]
+
+[tool.setuptools.package-data]
+shopping_copilot = ["reranker_lr.json"]

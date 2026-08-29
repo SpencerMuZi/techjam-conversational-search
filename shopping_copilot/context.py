@@ -16,4 +16,5 @@ class ContextBuilder:
             soft_slots={key: tuple(values) for key, values in state.soft_slots.items()},
             profile_tags=profile_tags,
             current_message=current_message,
+            turn=state.turn,
         )

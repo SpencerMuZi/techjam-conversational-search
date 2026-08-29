@@ -19,9 +19,14 @@ class AgentConfig:
 
     retrieval_depth: int = 250
     rerank_depth: int = 120
+    precise_seed: int = 100
     rrf_k: int = 60
     clarification_candidate_cutoff: int = 20
     max_query_terms: int = 48
+    # Load shopping_copilot/reranker_lr.json (stdlib-only linear model) as the
+    # reranker when present. Set False, or SHOPPING_COPILOT_RERANKER=manual, to
+    # fall back to the hand-tuned structured score.
+    learned_reranker: bool = True
     buying_weights: RouteWeights = field(
         default_factory=lambda: RouteWeights(
             keyword=1.0,

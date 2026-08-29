@@ -18,8 +18,10 @@ class ConversationState:
     history: list[tuple[str, str]] = field(default_factory=list)
     last_ask_attribute: str | None = None
     candidate_count: int = 0
+    turn: int = 1
 
     def apply(self, parsed: ParsedTurn, user_message: str, turn: int) -> None:
+        self.turn = turn
         if parsed.is_override:
             # The customer explicitly invalidated the earlier intent. Category and
             # profile are stable; intent-specific slots must be reconstructed.

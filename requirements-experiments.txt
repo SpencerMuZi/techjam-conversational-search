@@ -1,0 +1,6 @@
+# Offline reranker-comparison experiments only (scripts/compare_models.py).
+# The shipped agent under starter/ + shopping_copilot/ stays standard-library only.
+lightgbm>=4.5,<5
+scikit-learn>=1.5,<2
+numpy>=1.24
+

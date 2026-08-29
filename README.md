@@ -4,15 +4,24 @@ An offline-first, runtime-adaptive shopping agent for the TechJam Conversational
 
 ## Current public-set result
 
-| Metric | Weak starter | Framework |
-| --- | ---: | ---: |
-| Hit Rate@10 | 0.1250 | **0.9250** |
-| MRR | 0.068034 | **0.473827** |
-| MTTC | 9.81 | **3.835** |
-| Efficiency | 0.1190 | **0.7165** |
-| TechnicalScore | 0.106710 | **0.747948** |
+| Metric | Weak starter | Manual reranker | Learned reranker |
+| --- | ---: | ---: | ---: |
+| Hit Rate@10 | 0.1250 | 0.9450 | **0.9900** |
+| MRR | 0.068034 | 0.517153 | **0.758935** |
+| MTTC | 9.81 | 3.655 | **2.410** |
+| Efficiency | 0.1190 | 0.7345 | **0.8590** |
+| TechnicalScore | 0.106710 | 0.774546 | **0.894481** |
 
-These numbers come from the official deterministic evaluator on the 200-session public development set. They are development results, not a claim about the private 800-session score. The aggregate snapshot is stored in `docs/framework_results.json`.
+Official deterministic evaluator on the 200-session public development set;
+development results, not a claim about the private 800-session score. Aggregate
+snapshot in `docs/framework_results.json`.
+
+The **learned reranker** is an 11-feature logistic regression trained on the
+public sessions (`shopping_copilot/reranker_lr.json`, ~2 KB); inference is
+standard-library only. 5-fold session-grouped CV: MRR 0.7623 ± 0.0198
+(full-fit MRR 0.7589, so the train/CV gap is ~0). Set
+`SHOPPING_COPILOT_RERANKER=manual` (or `AgentConfig(learned_reranker=False)`) to
+fall back to the hand-tuned score. See `docs/model_experiments.md`.
 
 ## What is implemented
 
@@ -21,7 +30,14 @@ These numbers come from the official deterministic evaluator on the 200-session 
 - Runtime context distillation that rebuilds the retrieval query after every turn.
 - Proactive clarification that prioritizes high-value attributes and avoids repeated questions.
 - Multi-route retrieval over keyword, category, and accumulated constraints.
-- Reciprocal Rank Fusion followed by structured constraint reranking.
+- Reciprocal Rank Fusion followed by structured constraint reranking, with an
+  idf-weighted match bonus and a retrieval-rank prior so a strong BM25 hit is
+  promoted toward rank 1 instead of being flattened by category peers.
+- The head of each precise route is seeded straight into the reranker so a target
+  BM25 ranked highly is never dropped by a thin fused score.
+- An optional 11-feature logistic-regression reranker over the same feature
+  vector, trained offline and shipped as a ~2 KB coefficient file; scikit-learn /
+  LightGBM are experiment-time dependencies only.
 - A pluggable semantic retrieval interface with an offline no-op fallback.
 - Exact compliance with the official Agent response contract.
 - Standard-library-only default runtime: no API key, model download, or network access is required.
@@ -68,8 +84,20 @@ shopping_copilot/slots.py         structured constraint extraction
 shopping_copilot/context.py       dynamic context distillation
 shopping_copilot/clarification.py question policy
 shopping_copilot/retrieval.py     in-memory hybrid retrieval and reranking
+shopping_copilot/features.py      shared candidate feature vector (36 features)
+shopping_copilot/rerankers.py     Manual / logistic / forest / LambdaRank (experiments)
+shopping_copilot/learned_reranker.py  stdlib-only linear scorer for the shipped model
+shopping_copilot/reranker_lr.json 11-feature logistic-regression coefficients
 shopping_copilot/semantic.py      semantic retrieval adapter boundary
+experiments/dataset.py            replay public sessions, capture rerank features
+experiments/cv.py                 session-grouped CV harness (real evaluator per fold)
+experiments/feature_select.py     L1 path + greedy forward feature selection
+experiments/validate_subset.py    real-evaluator CV for feature subsets
+experiments/weight_stability.py   coefficient stability across seeds x folds
+experiments/hard_negatives.py     A/B: catalog-mined confusable negatives (rejected)
+experiments/train_reranker.py     fit the shipped logistic model -> reranker_lr.json
 scripts/analyze_results.py        compact metric reporting
+scripts/compare_models.py         four-way reranker comparison report
 scripts/demo_session.py           headless multi-turn demonstration
 tests/                             evaluator and framework tests
 ```
@@ -97,6 +125,24 @@ Expected catalog row count: 50,000. The catalog is ignored by Git and must not b
 ```bash
 python3 -m unittest discover -v
 ```
+
+## Reranker experiments (optional)
+
+```bash
+python3 -m pip install -r requirements-experiments.txt
+python3 scripts/compare_models.py          # 4-way session-grouped CV comparison
+python3 -m experiments.feature_select       # L1 path + greedy feature selection
+python3 -m experiments.validate_subset      # real-evaluator CV for feature subsets
+python3 -m experiments.weight_stability     # coefficient stability across seeds x folds
+python3 -m experiments.hard_negatives       # A/B mined hard negatives
+python3 -m experiments.train_reranker --features "<comma,separated>"   # refit shipped model
+```
+
+`scripts/compare_models.py` compares the hand-tuned score against logistic
+regression, random forest, and LightGBM LambdaRank; every fold is scored by the
+real evaluator on held-out sessions. See `docs/model_experiments.md` for the
+protocol and current results. These tools need scikit-learn / LightGBM; the
+shipped agent does not.
 
 ## Reproduce the public score
 

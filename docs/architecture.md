@@ -9,8 +9,13 @@ The evaluator creates an Agent once and calls `reset` for every isolated session
 3. Apply the turn to the session state.
 4. Distill the state into a route-specific `SearchContext`.
 5. Retrieve independent keyword, category, constraint, and semantic candidate lists.
-6. Fuse routes using Reciprocal Rank Fusion.
-7. Rerank the candidate set using hard constraints, soft preferences, category overlap, profile tags, and weak quality tie-breakers.
+6. Fuse routes using Reciprocal Rank Fusion, then seed the head of each precise
+   route (`AgentConfig.precise_seed`) directly into the rerank pool so a strong
+   BM25 hit with a thin fused score is still reranked.
+7. Rerank the candidate set using hard constraints, soft preferences, category
+   overlap, profile tags, and weak quality tie-breakers. Constraint matches carry
+   an idf bonus (rare phrases beat catalog boilerplate) and a decaying
+   retrieval-rank prior promotes a top BM25 hit toward rank 1.
 8. Return Top-10 recommendations and, when useful, one structured clarification request.
 
 ## State transition rules
@@ -34,7 +39,10 @@ Route weights are selected at runtime from `AgentConfig`: Buying emphasizes cons
 
 ## Safe extension points
 
-- Replace `NullSemanticRetriever` with an in-memory embedding index.
+- Replace `NullSemanticRetriever` with an in-memory embedding index. Roughly half
+  of the remaining misses are targets whose disclosed constraints are pure
+  boilerplate (`polyester`, `100% Polyester`, `Imported`) that no keyword route
+  can separate; a dense route is the main lever left.
 - Add a local cross-encoder after RRF and before the final structured score.
 - Replace the clarification priority list with expected information gain computed over candidate metadata.
 - Add per-source slot confidence and time decay for soft preferences.

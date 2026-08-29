@@ -1,20 +1,42 @@
 {
   "dataset": "data/public_set.jsonl",
   "sample_count": 200,
-  "hit_rate_at_10": 0.925,
-  "mrr": 0.473827,
-  "mttc": 3.835,
-  "efficiency": 0.7165,
-  "technical_score": 0.747948,
+  "reranker": "logistic_regression (11 features, shopping_copilot/reranker_lr.json)",
+  "hit_rate_at_10": 0.99,
+  "mrr": 0.758935,
+  "mttc": 2.41,
+  "efficiency": 0.859,
+  "technical_score": 0.894481,
   "reported_token_usage": {
     "prompt_tokens": 0,
     "completion_tokens": 0,
     "total_tokens": 0
   },
   "scenario_metrics": {
-    "boundary": {"sample_count": 10, "hit_rate_at_10": 0.8, "mrr": 0.345, "mttc": 4.1},
-    "browsing": {"sample_count": 80, "hit_rate_at_10": 0.95, "mrr": 0.425838, "mttc": 3.5},
-    "buying": {"sample_count": 80, "hit_rate_at_10": 0.95, "mrr": 0.558566, "mttc": 3.35},
-    "intent_override": {"sample_count": 30, "hit_rate_at_10": 0.833333, "mrr": 0.41877, "mttc": 5.933333}
-  }
+    "boundary": {
+      "sample_count": 10,
+      "hit_rate_at_10": 0.9,
+      "mrr": 0.676667,
+      "mttc": 2.5
+    },
+    "browsing": {
+      "sample_count": 80,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.718065,
+      "mttc": 2.0375
+    },
+    "buying": {
+      "sample_count": 80,
+      "hit_rate_at_10": 0.9875,
+      "mrr": 0.778299,
+      "mttc": 1.9875
+    },
+    "intent_override": {
+      "sample_count": 30,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.843704,
+      "mttc": 4.5
+    }
+  },
+  "note": "Full fit on the 200 public sessions. 5-fold session-grouped CV: MRR 0.7623 +/- 0.0198 (train/CV gap ~0). soft_idf_sum dropped for sign instability across folds. See docs/model_experiments.md."
 }

@@ -6,7 +6,10 @@ import unittest
 from pathlib import Path
 
 from shopping_copilot.agent import ShoppingCopilotAgent
+from shopping_copilot.config import AgentConfig
+from shopping_copilot.features import FEATURE_NAMES
 from shopping_copilot.intent import IntentRouter
+from shopping_copilot.rerankers import ManualReranker
 from shopping_copilot.slots import SlotExtractor
 from shopping_copilot.state import ConversationState
 
@@ -99,6 +102,71 @@ class FrameworkTest(unittest.TestCase):
         self.assertEqual(state.category, "Shoes Fashion Sneakers")
         self.assertFalse(state.soft_slots)
         self.assertIn("material", state.hard_slots)
+
+    def test_idf_weight_prefers_rare_phrases(self) -> None:
+        agent = ShoppingCopilotAgent(self.catalog_path)
+        index = agent.retriever.index
+        self.assertEqual(index.term_weight(""), 0.4)
+        self.assertGreaterEqual(index.term_weight("leather"), 0.35)
+        self.assertLessEqual(index.term_weight("leather"), 2.5)
+        # A term the whole catalog shares must not outweigh a rare, specific one.
+        index.idf["ubiquitous"] = 0.0
+        index.idf["scarce"] = 8.0
+        self.assertLess(index.term_weight("ubiquitous"), index.term_weight("scarce"))
+
+    def test_strong_bm25_hit_is_not_reranked_out(self) -> None:
+        agent = ShoppingCopilotAgent(self.catalog_path)
+        agent.reset("s", {"preference_tags": [], "summary": ""})
+        # Generic constraint that every shoe shares; the target is separated only
+        # by the retrieval-rank prior / precise-route seeding.
+        response = agent.respond(
+            "s", "I'm looking for Shoes Fashion Sneakers. A key requirement is: red leather.", 1, 10
+        )
+        identifiers = [item["parent_asin"] for item in response["recommendations"]]
+        self.assertIn("LEATHER_SHOE", identifiers)
+
+    def test_manual_reranker_matches_builtin_score(self) -> None:
+        # ManualReranker rescores from the feature vector; its ordering must match
+        # the built-in structured score so the model comparison starts from parity.
+        message = "I'm looking for Shoes Fashion Sneakers. A key requirement is: genuine leather."
+
+        builtin = ShoppingCopilotAgent(self.catalog_path, AgentConfig(learned_reranker=False))
+        self.assertIsNone(builtin.retriever.reranker)
+        builtin.reset("s", {"preference_tags": ["material"], "summary": ""})
+        base = builtin.respond("s", message, 1, 10)
+
+        ported = ShoppingCopilotAgent(self.catalog_path, AgentConfig(learned_reranker=False))
+        ported.retriever.reranker = ManualReranker()
+        ported.reset("s", {"preference_tags": ["material"], "summary": ""})
+        ported_out = ported.respond("s", message, 1, 10)
+
+        self.assertEqual(
+            [r["parent_asin"] for r in base["recommendations"]],
+            [r["parent_asin"] for r in ported_out["recommendations"]],
+        )
+
+    def test_learned_reranker_loads_and_is_wired(self) -> None:
+        from shopping_copilot.learned_reranker import PackagedLogisticReranker
+
+        agent = ShoppingCopilotAgent(self.catalog_path)
+        self.assertIsInstance(agent.retriever.reranker, PackagedLogisticReranker)
+        # Feature-subset mapping: only the model's own features are consumed.
+        self.assertTrue(set(agent.retriever.reranker.feature_names).issubset(set(FEATURE_NAMES)))
+        agent.reset("s", {"preference_tags": [], "summary": ""})
+        out = agent.respond("s", "I'm looking for Shoes Fashion Sneakers, but I'm still exploring.", 1, 10)
+        self.assertLessEqual(len(out["recommendations"]), 10)
+
+        disabled = ShoppingCopilotAgent(self.catalog_path, AgentConfig(learned_reranker=False))
+        self.assertIsNone(disabled.retriever.reranker)
+
+    def test_feature_vector_width_is_stable(self) -> None:
+        agent = ShoppingCopilotAgent(self.catalog_path)
+        agent.retriever.capture = True
+        agent.reset("s", {"preference_tags": [], "summary": ""})
+        agent.respond("s", "I'm looking for Shoes Fashion Sneakers, but I'm still exploring.", 1, 10)
+        self.assertTrue(agent.retriever.last_candidates)
+        for _, vector in agent.retriever.last_candidates:
+            self.assertEqual(len(vector), len(FEATURE_NAMES))
 
     def test_agent_returns_contract_compliant_ranked_results(self) -> None:
         agent = ShoppingCopilotAgent(self.catalog_path)

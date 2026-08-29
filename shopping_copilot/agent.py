@@ -5,6 +5,7 @@ from pathlib import Path
 from .clarification import ClarificationPolicy
 from .config import AgentConfig
 from .context import ContextBuilder
+from .learned_reranker import default_reranker
 from .retrieval import HybridRetriever
 from .slots import SlotExtractor
 from .state import SessionStore
@@ -19,6 +20,7 @@ class ShoppingCopilotAgent:
         self.extractor = SlotExtractor()
         self.context_builder = ContextBuilder()
         self.retriever = HybridRetriever(catalog_path, self.config)
+        self.retriever.reranker = default_reranker(self.config.learned_reranker)
         self.clarification = ClarificationPolicy(self.config)
 
     def reset(self, session_id: str, user_profile: dict) -> None:
