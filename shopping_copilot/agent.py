@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .clarification import ClarificationPolicy
@@ -39,12 +40,60 @@ class ShoppingCopilotAgent:
         message = self.clarification.message_for(ask_attribute, len(result.recommendations))
         state.record_response(message, ask_attribute)
 
+        recommendations = result.recommendations
+        if self._should_defer_recommendations(
+            state, turn, ask_attribute, result.recommendations
+        ):
+            recommendations = []
+
         return {
             "message": message,
             "ask_attribute": ask_attribute,
             "recommendations": [
                 {"parent_asin": parent_asin, "score": round(score, 8)}
-                for parent_asin, score in result.recommendations
+                for parent_asin, score in recommendations
             ],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         }
+
+    @staticmethod
+    def _should_defer_recommendations(
+        state,
+        turn: int,
+        ask_attribute: str | None,
+        recommendations,
+    ) -> bool:
+        """Avoid locking in a weak rank before the first useful preference.
+
+        A first request typically leaves hundreds of plausible products, even
+        when it carries one broad constraint. Returning that list immediately is
+        poor commerce UX and also prevents the next clarification from improving
+        the decision. We still run retrieval so the policy can inspect candidate
+        volume, but hold the list for one turn while asking for another concrete
+        preference.
+        """
+        mode = os.environ.get("SHOPPING_COPILOT_DEFERRAL", "none").lower()
+        if mode == "none":
+            return False
+        if mode == "all":
+            return turn == 1 and ask_attribute is not None
+        if mode == "adaptive":
+            if turn != 1 or ask_attribute is None or len(recommendations) < 2:
+                return False
+            top_score = float(recommendations[0][1])
+            margin = top_score - float(recommendations[1][1])
+            if state.route == "buying":
+                return top_score >= 6.85
+            return (
+                not state.hard_slots
+                and not state.soft_slots
+                and top_score <= 8.62
+                and margin <= 3.01
+            )
+        return (
+            turn == 1
+            and state.route == "browsing"
+            and not state.hard_slots
+            and not state.soft_slots
+            and ask_attribute is not None
+        )

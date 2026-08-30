@@ -163,6 +163,25 @@ class CatalogIndex:
         ).fetchall()
         return [(str(asin), -float(score)) for asin, score in rows]
 
+    def search_fts_all(self, query: str, limit: int) -> list[tuple[str, float]]:
+        """Require every informative term from one constraint fragment.
+
+        The broad route intentionally uses OR for recall. This companion route
+        recovers products containing an entire disclosed feature phrase, which
+        would otherwise be buried under thousands of partial matches for common
+        words such as ``cotton`` or ``grey``.
+        """
+        terms = _terms(query)[:16]
+        if len(terms) < 2:
+            return []
+        expression = " AND ".join(f'"{term}"' for term in terms)
+        rows = self.connection.execute(
+            "SELECT parent_asin, bm25(products, 0.0, 7.0, 5.0, 3.0, 2.5, 1.5, 1.0) AS score "
+            "FROM products WHERE products MATCH ? ORDER BY score LIMIT ?",
+            (expression, limit),
+        ).fetchall()
+        return [(str(asin), -float(score)) for asin, score in rows]
+
     def popular(self, limit: int) -> list[str]:
         return self._popular[:limit]
 
@@ -202,6 +221,29 @@ class HybridRetriever:
         keyword_rows = self.index.search_fts_scored(keyword_text, depth)
         category_rows = self.index.search_fts_scored(context.category, depth)
         constraint_rows = self.index.search_fts_scored(constraint_text, depth)
+        # Put full-fragment matches ahead of the broad OR route. Process the most
+        # specific fragments first so a long product feature outranks a generic
+        # material or colour term.
+        fragments = sorted(
+            (*context.hard_values, *context.soft_values),
+            key=lambda value: (
+                len(_terms(value)),
+                self.index.term_weight(value),
+            ),
+            reverse=True,
+        )
+        conjunctive_rows: list[tuple[str, float]] = []
+        conjunctive_seen: set[str] = set()
+        per_fragment = max(10, min(50, depth // 4))
+        for fragment in fragments:
+            for asin, score in self.index.search_fts_all(fragment, per_fragment):
+                if asin not in conjunctive_seen:
+                    conjunctive_seen.add(asin)
+                    conjunctive_rows.append((asin, score))
+        if conjunctive_rows:
+            constraint_rows = conjunctive_rows + [
+                row for row in constraint_rows if row[0] not in conjunctive_seen
+            ]
         semantic_rows = self.semantic.search(semantic_query, depth) if semantic_query else []
 
         keyword_ranked = [asin for asin, _ in keyword_rows]

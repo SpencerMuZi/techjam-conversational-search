@@ -125,6 +125,13 @@ class FrameworkTest(unittest.TestCase):
         identifiers = [item["parent_asin"] for item in response["recommendations"]]
         self.assertIn("LEATHER_SHOE", identifiers)
 
+    def test_conjunctive_constraint_route_requires_every_term(self) -> None:
+        agent = ShoppingCopilotAgent(self.catalog_path)
+        rows = agent.retriever.index.search_fts_all("red leather", 10)
+        identifiers = [asin for asin, _ in rows]
+        self.assertEqual(identifiers[0], "LEATHER_SHOE")
+        self.assertNotIn("BLACK_SHOE", identifiers)
+
     def test_manual_reranker_matches_builtin_score(self) -> None:
         # ManualReranker rescores from the feature vector; its ordering must match
         # the built-in structured score so the model comparison starts from parity.
@@ -146,10 +153,16 @@ class FrameworkTest(unittest.TestCase):
         )
 
     def test_learned_reranker_loads_and_is_wired(self) -> None:
-        from shopping_copilot.learned_reranker import PackagedLogisticReranker
+        from shopping_copilot.learned_reranker import (
+            PackagedLambdaRankReranker,
+            PackagedLogisticReranker,
+        )
 
         agent = ShoppingCopilotAgent(self.catalog_path)
-        self.assertIsInstance(agent.retriever.reranker, PackagedLogisticReranker)
+        self.assertIsInstance(
+            agent.retriever.reranker,
+            (PackagedLambdaRankReranker, PackagedLogisticReranker),
+        )
         # Feature-subset mapping: only the model's own features are consumed.
         self.assertTrue(set(agent.retriever.reranker.feature_names).issubset(set(FEATURE_NAMES)))
         agent.reset("s", {"preference_tags": [], "summary": ""})

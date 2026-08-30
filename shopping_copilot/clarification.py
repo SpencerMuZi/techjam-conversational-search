@@ -5,6 +5,7 @@ from .state import ConversationState
 
 
 QUESTION_TEXT = {
+    "other": "What other requirements or preferences should I prioritize?",
     "material": "Do you have a preferred material?",
     "feature": "Which feature matters most to you?",
     "color": "Do you have a color preference?",
@@ -51,8 +52,8 @@ class ClarificationPolicy:
             preferred.append("use_case")
 
         base = (
-            ("feature", "material", "color", "style", "size", "use_case", "budget")
+            ("other", "feature", "material", "color", "style", "size", "use_case", "budget")
             if state.route == "buying" and "material" in state.hard_slots
-            else ("material", "feature", "color", "style", "size", "use_case", "budget")
+            else ("other", "material", "feature", "color", "style", "size", "use_case", "budget")
         )
         return tuple(dict.fromkeys([*preferred, *base]))

@@ -1,0 +1,3 @@
+# High-accuracy packaged LambdaRank inference.
+lightgbm>=4.5,<5
+numpy>=1.24

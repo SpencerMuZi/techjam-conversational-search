@@ -130,7 +130,9 @@ class LambdaReranker:
         rows = np.asarray(feature_rows, dtype=np.float64)
         if rows.size == 0:
             return np.zeros((0,))
-        return self.model.predict(rows)
+        # Bypass the sklearn wrapper at inference: the booster consumes the same
+        # numeric matrix without emitting one feature-name warning per turn.
+        return self.model.booster_.predict(rows)
 
 
 def build_reranker(name: str, random_state: int = 0):

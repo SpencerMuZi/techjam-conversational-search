@@ -8,10 +8,13 @@ version = "0.1.0"
 description = "Offline-first conversational shopping agent framework"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+  "lightgbm>=4.5,<5",
+  "numpy>=1.24",
+]
 
 [tool.setuptools.packages.find]
 include = ["shopping_copilot*", "starter*"]
 
 [tool.setuptools.package-data]
-shopping_copilot = ["reranker_lr.json"]
+shopping_copilot = ["reranker_lr.json", "reranker_lgbm.txt"]

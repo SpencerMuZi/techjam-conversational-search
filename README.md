@@ -4,24 +4,25 @@ An offline-first, runtime-adaptive shopping agent for the TechJam Conversational
 
 ## Current public-set result
 
-| Metric | Weak starter | Manual reranker | Learned reranker |
-| --- | ---: | ---: | ---: |
-| Hit Rate@10 | 0.1250 | 0.9450 | **0.9900** |
-| MRR | 0.068034 | 0.517153 | **0.758935** |
-| MTTC | 9.81 | 3.655 | **2.410** |
-| Efficiency | 0.1190 | 0.7345 | **0.8590** |
-| TechnicalScore | 0.106710 | 0.774546 | **0.894481** |
+| Metric | Weak starter | Manual | Logistic | LambdaRank |
+| --- | ---: | ---: | ---: | ---: |
+| Hit Rate@10 | 0.1250 | 0.9450 | 0.9950 | **0.9950** |
+| MRR | 0.068034 | 0.517153 | 0.763129 | **0.9950** |
+| MTTC | 9.81 | 3.655 | 2.280 | **2.230** |
+| Efficiency | 0.1190 | 0.7345 | 0.8720 | **0.8770** |
+| TechnicalScore | 0.106710 | 0.774546 | 0.900839 | **0.971400** |
 
 Official deterministic evaluator on the 200-session public development set;
 development results, not a claim about the private 800-session score. Aggregate
 snapshot in `docs/framework_results.json`.
 
-The **learned reranker** is an 11-feature logistic regression trained on the
-public sessions (`shopping_copilot/reranker_lr.json`, ~2 KB); inference is
-standard-library only. 5-fold session-grouped CV: MRR 0.7623 ± 0.0198
-(full-fit MRR 0.7589, so the train/CV gap is ~0). Set
-`SHOPPING_COPILOT_RERANKER=manual` (or `AgentConfig(learned_reranker=False)`) to
-fall back to the hand-tuned score. See `docs/model_experiments.md`.
+The default learned reranker is a 36-feature LightGBM LambdaRank model trained
+with every in-pool negative. The `0.9714` number is a full-fit public-development
+score, not a private-set estimate: its session-grouped CV TechnicalScore is
+`0.8832 ± 0.0236`, so it has a material overfitting gap. The smaller 11-feature
+logistic model remains available as the more stable fallback. Select with
+`SHOPPING_COPILOT_RERANKER=lambdarank|logistic|manual`; see
+`docs/model_experiments.md`.
 
 ## What is implemented
 
@@ -30,17 +31,18 @@ fall back to the hand-tuned score. See `docs/model_experiments.md`.
 - Runtime context distillation that rebuilds the retrieval query after every turn.
 - Proactive clarification that prioritizes high-value attributes and avoids repeated questions.
 - Multi-route retrieval over keyword, category, and accumulated constraints.
+- A high-precision conjunctive constraint route that requires every informative
+  term in one disclosed feature fragment, ordered by fragment specificity.
 - Reciprocal Rank Fusion followed by structured constraint reranking, with an
   idf-weighted match bonus and a retrieval-rank prior so a strong BM25 hit is
   promoted toward rank 1 instead of being flattened by category peers.
 - The head of each precise route is seeded straight into the reranker so a target
   BM25 ranked highly is never dropped by a thin fused score.
-- An optional 11-feature logistic-regression reranker over the same feature
-  vector, trained offline and shipped as a ~2 KB coefficient file; scikit-learn /
-  LightGBM are experiment-time dependencies only.
+- A packaged LightGBM LambdaRank reranker over 36 shared features, with a ~2 KB
+  standard-library logistic fallback and a manual-score fallback.
 - A pluggable semantic retrieval interface with an offline no-op fallback.
 - Exact compliance with the official Agent response contract.
-- Standard-library-only default runtime: no API key, model download, or network access is required.
+- No API key, hosted model, model download, or network access is required at inference.
 
 ## Architecture
 
@@ -86,8 +88,9 @@ shopping_copilot/clarification.py question policy
 shopping_copilot/retrieval.py     in-memory hybrid retrieval and reranking
 shopping_copilot/features.py      shared candidate feature vector (36 features)
 shopping_copilot/rerankers.py     Manual / logistic / forest / LambdaRank (experiments)
-shopping_copilot/learned_reranker.py  stdlib-only linear scorer for the shipped model
+shopping_copilot/learned_reranker.py  packaged LambdaRank loader + linear fallback
 shopping_copilot/reranker_lr.json 11-feature logistic-regression coefficients
+shopping_copilot/reranker_lgbm.txt submitted high-capacity LambdaRank model
 shopping_copilot/semantic.py      semantic retrieval adapter boundary
 experiments/dataset.py            replay public sessions, capture rerank features
 experiments/cv.py                 session-grouped CV harness (real evaluator per fold)
@@ -104,11 +107,15 @@ tests/                             evaluator and framework tests
 
 ## Setup
 
-Python 3.10 or later is recommended. The default implementation only uses the Python standard library.
+Python 3.10 or later is recommended. Installation includes the local LightGBM
+runtime used by the high-accuracy ranker.
 
 ```bash
 python3 -m pip install -e .
 ```
+
+On macOS, LightGBM may also require `brew install libomp`. If LightGBM cannot be
+loaded, the agent automatically uses the pure-Python logistic model.
 
 Download `catalog.jsonl.gz` and `SHA256SUMS` from the official [Participant Kit release](https://github.com/TechJam2026/techjam-conversational-search/releases/tag/participant-kit), verify it, and install the catalog:
 
@@ -136,13 +143,14 @@ python3 -m experiments.validate_subset      # real-evaluator CV for feature subs
 python3 -m experiments.weight_stability     # coefficient stability across seeds x folds
 python3 -m experiments.hard_negatives       # A/B mined hard negatives
 python3 -m experiments.train_reranker --features "<comma,separated>"   # refit shipped model
+python3 -m scripts.tune_lambdarank           # capacity / negative-pool search
+python3 -m scripts.cv_lambdarank_capacity    # real-evaluator grouped CV
 ```
 
 `scripts/compare_models.py` compares the hand-tuned score against logistic
 regression, random forest, and LightGBM LambdaRank; every fold is scored by the
 real evaluator on held-out sessions. See `docs/model_experiments.md` for the
-protocol and current results. These tools need scikit-learn / LightGBM; the
-shipped agent does not.
+protocol and current results. Experiment scripts additionally need scikit-learn.
 
 ## Reproduce the public score
 
@@ -191,6 +199,9 @@ Pass that implementation to `HybridRetriever`. Keep embeddings and generated ind
 - The current semantic route is an extension point rather than a bundled dense model.
 - Rule-based slot extraction is aligned with the clean-text competition scope but is not a general natural-language parser.
 - Public-set tuning may not transfer perfectly to private users and products; route weights should be validated with ablation tests.
+- The submitted high-capacity LambdaRank model intentionally maximizes the public
+  TechnicalScore and has a large full-fit/CV gap. For private-score robustness,
+  compare it against `SHOPPING_COPILOT_RERANKER=logistic` before final submission.
 - Candidate-count estimation currently reflects the fused retrieval pool, not an exact filtered-catalog count.
 - The next iteration should compare a small local bi-encoder and cross-encoder against this offline framework, with latency and memory reported.
 

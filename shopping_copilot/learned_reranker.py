@@ -1,9 +1,9 @@
-"""Standard-library-only linear reranker loaded from trained coefficients.
+"""Packaged learned rerankers with a deterministic linear fallback.
 
 ``experiments/train_reranker.py`` fits a scikit-learn ``LogisticRegression`` on
 the public sessions and serialises the standardiser statistics + linear weights
-to ``reranker_lr.json``. At inference we only need ``json`` + ``math`` here, so
-the shipped agent keeps no scientific-Python dependency.
+to ``reranker_lr.json``. The higher-accuracy default is a LightGBM LambdaRank
+model; environments without LightGBM fall back to the standard-library scorer.
 """
 from __future__ import annotations
 
@@ -14,6 +14,37 @@ from pathlib import Path
 from .features import FEATURE_NAMES
 
 DEFAULT_WEIGHTS_PATH = Path(__file__).with_name("reranker_lr.json")
+DEFAULT_LGBM_PATH = Path(__file__).with_name("reranker_lgbm.txt")
+
+
+class PackagedLambdaRankReranker:
+    """Load the submitted LambdaRank booster used for high-accuracy inference."""
+
+    trainable = False
+
+    def __init__(self, booster) -> None:
+        self.booster = booster
+        self.feature_names = list(FEATURE_NAMES)
+        self.meta = {"model": "lightgbm_lambdarank", "features": len(FEATURE_NAMES)}
+
+    @classmethod
+    def load(cls, path: str | Path = DEFAULT_LGBM_PATH):
+        path = Path(path)
+        if not path.exists():
+            return None
+        try:
+            import lightgbm as lgb
+        except (ImportError, OSError):
+            return None
+        return cls(lgb.Booster(model_file=str(path)))
+
+    def score(self, feature_rows):
+        import numpy as np
+
+        rows = np.asarray(feature_rows, dtype=np.float64)
+        if rows.size == 0:
+            return np.zeros((0,))
+        return self.booster.predict(rows)
 
 
 class PackagedLogisticReranker:
@@ -59,6 +90,11 @@ def default_reranker(config_enabled: bool = True):
     """Return the packaged reranker unless disabled by config or env override."""
     if not config_enabled:
         return None
-    if os.environ.get("SHOPPING_COPILOT_RERANKER", "learned").lower() == "manual":
+    mode = os.environ.get("SHOPPING_COPILOT_RERANKER", "lambdarank").lower()
+    if mode == "manual":
         return None
+    if mode in {"lambdarank", "lgbm", "auto"}:
+        reranker = PackagedLambdaRankReranker.load()
+        if reranker is not None:
+            return reranker
     return PackagedLogisticReranker.load()

@@ -123,3 +123,40 @@ No gain, and CV variance rises (σ 0.020 → 0.029). The pool's top-by-fused ite
 are already the hard confusables; mined items sit outside any retrieval route
 (`constraint_recip` = 0, `rrf_fused_score` ≈ 0), a state the reranker never meets
 at inference, so they add noise. The shipped model keeps the baseline negatives.
+
+## High-capacity public-score model
+
+The final public-score experiment adds conjunctive per-fragment constraint
+retrieval, asks a broad `other` clarification before narrower attributes, and
+trains LambdaRank against every candidate in each turn containing the target.
+The selected model uses 1,000 estimators, up to 511 leaves, and 36 features.
+
+| Metric | Full-fit public result |
+| --- | ---: |
+| Hit@10 | 0.9950 |
+| MRR | 0.9950 |
+| MTTC | 2.230 |
+| Efficiency | 0.8770 |
+| TechnicalScore | **0.971400** |
+
+This is intentionally an optimistic, full-fit development result. A fresh
+5-fold scenario-stratified GroupKFold run through the real evaluator gives:
+
+| Metric | CV mean ± σ |
+| --- | ---: |
+| Hit@10 | 0.9950 ± 0.0100 |
+| MRR | 0.7114 ± 0.0708 |
+| MTTC | 2.385 ± 0.273 |
+| TechnicalScore | 0.8832 ± 0.0236 |
+
+The gap is large: the high-capacity model should be treated as a public-score
+upper-bound experiment, not proof of private-set generalization. The packaged
+logistic model remains the stability-oriented option and can be selected with
+`SHOPPING_COPILOT_RERANKER=logistic`; `manual` disables learned reranking.
+
+Reproduce the capacity search and grouped validation with:
+
+```bash
+python3 -m scripts.tune_lambdarank --extended
+python3 -m scripts.cv_lambdarank_capacity
+```
