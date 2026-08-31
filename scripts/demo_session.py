@@ -112,7 +112,11 @@ def run_replay(args) -> None:
         ranked = normalize_recommendations(response.get("recommendations"), catalog_ids)
         pool = getattr(agent.retriever, "last_candidates", None)
         pool_size = len(pool) if pool else None
-        _print_turn(turn, user_message, response, ranked, target, pool_size, products)
+        if args.json:
+            print(f"\n>>> respond(turn={turn}, user_message={user_message!r})")
+            print(json.dumps(response, indent=2))
+        else:
+            _print_turn(turn, user_message, response, ranked, target, pool_size, products)
 
         if override_applied and target in ranked:
             hit_turn = turn
@@ -144,6 +148,7 @@ def main() -> None:
     parser.add_argument("--catalog", default="data/catalog.jsonl")
     parser.add_argument("--dataset", default="data/public_set.jsonl")
     parser.add_argument("--sample", help="replay a public dev session, e.g. public_0050")
+    parser.add_argument("--json", action="store_true", help="print the raw respond() dict per turn")
     parser.add_argument("--message", action="append", dest="messages")
     args = parser.parse_args()
     run_replay(args) if args.sample else run_scripted(args)
