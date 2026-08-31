@@ -187,12 +187,53 @@ full architecture with the isolated V4 submission files.
 | Efficiency | 0.9310 | — |
 | TechnicalScore | **0.985450** | 0.8634 ± 0.0093 |
 
-The wide model is the default public-score mode. The CV gap is explicit: use
-`SHOPPING_COPILOT_RERANKER=lambdarank` for the stronger-CV precise model, or
-`logistic` for the smallest fallback. Reproduce it with:
+The wide model is an opt-in public-score mode. The CV gap is explicit; the
+stability-oriented `logistic` model is the runtime default. Reproduce it with:
 
 ```bash
 python3 -m scripts.train_wide_lambdarank
 python3 -m scripts.cv_lambdarank_capacity \
   --pool-depth 300 --profile wide_pool --seed 2026
+```
+
+## Robustness hardening
+
+The public data contains 200 sessions but only 125 unique user-profile payloads.
+Session-only folds can therefore put the same profile in training and validation.
+The hardened protocol uses scenario-stratified, **user-profile-grouped** outer
+folds. LambdaRank capacity and early-stopping iteration are selected inside each
+outer training fold; the outer fold is evaluated once by the real evaluator.
+
+| Model | Hit@10 | MRR | MTTC | TechnicalScore |
+| --- | ---: | ---: | ---: | ---: |
+| g11 Logistic | 0.9972 ± 0.0056 | 0.7706 ± 0.0580 | 2.239 ± 0.175 | **0.9050 ± 0.0202** |
+| Regularized LambdaRank | 0.9235 ± 0.0662 | 0.6051 ± 0.0926 | 2.982 ± 0.886 | 0.8036 ± 0.0766 |
+
+The regularized search compared 7/15-leaf trees, 11/12-feature subsets,
+L1/L2 penalties, hard-negative subsampling, NDCG@1 early stopping, and a
+rank-10 LambdaRank truncation level. Inner folds selected only 8–27 trees in
+four of five outer folds, confirming that the former 800–1,000-tree models were
+far beyond the data's supported capacity. Preventing memorization does not make
+the small dataset sufficient for a nonlinear model; the linear model wins.
+
+First-turn deferral was tested under the same profile-grouped folds:
+
+| Policy | MRR | MTTC | TechnicalScore |
+| --- | ---: | ---: | ---: |
+| Immediate | 0.7706 ± 0.0580 | 2.239 ± 0.175 | 0.9050 ± 0.0202 |
+| Defer every first turn | 0.7892 ± 0.0433 | 2.804 ± 0.129 | 0.8993 ± 0.0133 |
+| Existing adaptive gate | 0.7856 ± 0.0500 | 2.446 ± 0.181 | 0.9054 ± 0.0159 |
+| Browsing-only | 0.7857 ± 0.0500 | 2.459 ± 0.169 | 0.9051 ± 0.0161 |
+
+The adaptive gate slightly improves the mean while reducing fold variance and is
+therefore paired with the stable logistic reranker as the runtime default. None
+of the leakage-resistant variants reaches 0.95. At the observed Hit@10 and MTTC,
+that target requires roughly 0.91 MRR;
+additional independently labelled or fold-safe synthetic sessions are needed.
+
+Reproduce:
+
+```bash
+python3 -m scripts.cv_regularized_lambdarank --output regularized_cv.json
+python3 -m scripts.cv_deferral_policy --output deferral_cv.json
 ```

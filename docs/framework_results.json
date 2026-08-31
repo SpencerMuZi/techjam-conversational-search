@@ -1,31 +1,39 @@
 {
   "dataset": "data/public_set.jsonl",
   "sample_count": 200,
-  "reranker": "Wide LightGBM LambdaRank (36 features, 300-deep candidate pools)",
-  "hit_rate_at_10": 1.0,
-  "mrr": 0.9975,
-  "mttc": 1.69,
-  "efficiency": 0.931,
-  "technical_score": 0.98545,
+  "reranker": "g11 Logistic + adaptive first-turn deferral (default)",
+  "hit_rate_at_10": 0.995,
+  "mrr": 0.791,
+  "mttc": 2.51,
+  "efficiency": 0.849,
+  "technical_score": 0.9046,
   "reported_token_usage": {
     "prompt_tokens": 0,
     "completion_tokens": 0,
     "total_tokens": 0
   },
   "scenario_metrics": {
-    "boundary": {"sample_count": 10, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 1.5},
-    "browsing": {"sample_count": 80, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 1.375},
-    "buying": {"sample_count": 80, "hit_rate_at_10": 1.0, "mrr": 0.99375, "mttc": 1.2875},
-    "intent_override": {"sample_count": 30, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 3.666667}
+    "boundary": {"sample_count": 10, "hit_rate_at_10": 1.0, "mrr": 0.793333, "mttc": 2.9},
+    "browsing": {"sample_count": 80, "hit_rate_at_10": 1.0, "mrr": 0.77941, "mttc": 2.5625},
+    "buying": {"sample_count": 80, "hit_rate_at_10": 0.9875, "mrr": 0.782535, "mttc": 1.7625},
+    "intent_override": {"sample_count": 30, "hit_rate_at_10": 1.0, "mrr": 0.843704, "mttc": 4.233333}
   },
   "cross_validation": {
-    "protocol": "5-fold scenario-stratified, session-grouped, real evaluator",
-    "hit_rate_at_10_mean": 0.995,
-    "mrr_mean": 0.618075,
-    "mrr_std": 0.028037,
-    "mttc_mean": 1.975,
-    "technical_score_mean": 0.863423,
-    "technical_score_std": 0.009294
+    "protocol": "5-fold scenario-stratified, user-profile-grouped, real evaluator",
+    "unique_profiles": 125,
+    "hit_rate_at_10_mean": 0.997183,
+    "hit_rate_at_10_std": 0.005634,
+    "mrr_mean": 0.785604,
+    "mrr_std": 0.049951,
+    "mttc_mean": 2.44607,
+    "mttc_std": 0.181067,
+    "technical_score_mean": 0.905351,
+    "technical_score_std": 0.015929
   },
-  "note": "The 0.98545 score is a full-fit public-development result and is optimistically biased. Use SHOPPING_COPILOT_RERANKER=lambdarank or logistic for more conservative alternatives."
+  "public_upper_bound": {
+    "reranker": "Wide LightGBM LambdaRank",
+    "technical_score_full_fit": 0.98545,
+    "technical_score_session_grouped_cv": 0.863423
+  },
+  "note": "Stable logistic with adaptive deferral is the default. Wide and precise LambdaRank remain explicit public-score experiments because their full-fit/CV gaps are large."
 }

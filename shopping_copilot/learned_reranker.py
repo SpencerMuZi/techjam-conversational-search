@@ -2,8 +2,8 @@
 
 ``experiments/train_reranker.py`` fits a scikit-learn ``LogisticRegression`` on
 the public sessions and serialises the standardiser statistics + linear weights
-to ``reranker_lr.json``. The higher-accuracy default is a LightGBM LambdaRank
-model; environments without LightGBM fall back to the standard-library scorer.
+to ``reranker_lr.json``. This stable linear model is the default. The higher
+public-score LightGBM models remain explicit, opt-in experiments.
 """
 from __future__ import annotations
 
@@ -96,16 +96,20 @@ def default_reranker(config_enabled: bool = True):
     """Return the packaged reranker unless disabled by config or env override."""
     if not config_enabled:
         return None
-    mode = os.environ.get("SHOPPING_COPILOT_RERANKER", "wide").lower()
+    # The small linear model has a negligible train/CV gap.  High-capacity
+    # LambdaRank models remain explicit public-score experiments; making one of
+    # them the implicit default would silently trade generalisation for a score
+    # measured on the same 200 sessions used for fitting.
+    mode = os.environ.get("SHOPPING_COPILOT_RERANKER", "logistic").lower()
     if mode == "manual":
         return None
-    if mode in {"wide", "wide_lambdarank", "auto"}:
+    if mode in {"wide", "wide_lambdarank"}:
         reranker = PackagedLambdaRankReranker.load(
             DEFAULT_WIDE_LGBM_PATH, variant="wide"
         )
         if reranker is not None:
             return reranker
-    if mode in {"lambdarank", "lgbm", "auto", "wide", "wide_lambdarank"}:
+    if mode in {"lambdarank", "lgbm", "wide", "wide_lambdarank"}:
         reranker = PackagedLambdaRankReranker.load()
         if reranker is not None:
             return reranker

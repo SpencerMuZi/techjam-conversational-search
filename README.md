@@ -4,25 +4,26 @@ An offline-first, runtime-adaptive shopping agent for the TechJam Conversational
 
 ## Current public-set result
 
-| Metric | Weak starter | Manual | Logistic | Precise LambdaRank | Wide LambdaRank |
+| Metric | Weak starter | Manual | Logistic + adaptive | Precise LambdaRank | Wide LambdaRank |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Hit Rate@10 | 0.1250 | 0.9450 | 0.9950 | 0.9950 | **1.0000** |
-| MRR | 0.068034 | 0.517153 | 0.763129 | 0.9950 | **0.9975** |
-| MTTC | 9.81 | 3.655 | 2.280 | 2.130 | **1.690** |
-| Efficiency | 0.1190 | 0.7345 | 0.8720 | 0.8870 | **0.9310** |
-| TechnicalScore | 0.106710 | 0.774546 | 0.900839 | 0.973400 | **0.985450** |
+| MRR | 0.068034 | 0.517153 | 0.791000 | 0.9950 | **0.9975** |
+| MTTC | 9.81 | 3.655 | 2.510 | 2.130 | **1.690** |
+| Efficiency | 0.1190 | 0.7345 | 0.8490 | 0.8870 | **0.9310** |
+| TechnicalScore | 0.106710 | 0.774546 | 0.904600 | 0.973400 | **0.985450** |
 
 Official deterministic evaluator on the 200-session public development set;
 development results, not a claim about the private 800-session score. Aggregate
 snapshot in `docs/framework_results.json`.
 
-The default `wide` reranker is a 36-feature LightGBM LambdaRank model trained on
-300-deep candidate pools. The `0.98545` number is a full-fit public-development
-score, not a private-set estimate: its session-grouped CV TechnicalScore is
+The default runtime is now the 11-feature `logistic` model with adaptive
+first-turn deferral. Its stricter user-profile-grouped CV TechnicalScore is
+`0.9054 ± 0.0159`. The `wide` model's `0.98545` number is a full-fit
+public-development score, not a private-set estimate: its session-grouped CV TechnicalScore is
 `0.8634 ± 0.0093`, so it has a material overfitting gap. The precise `lambdarank`
 mode has a lower public score (`0.9734` with its confidence gate) but its underlying
 model has stronger CV (`0.8832 ± 0.0236`), and
-the 11-feature logistic model remains the small stability-oriented fallback.
+the logistic + adaptive combination is the stability-oriented production choice.
 Select with `SHOPPING_COPILOT_RERANKER=wide|lambdarank|logistic|manual`; see
 `docs/model_experiments.md`.
 
@@ -153,6 +154,8 @@ python3 -m scripts.tune_lambdarank           # capacity / negative-pool search
 python3 -m scripts.cv_lambdarank_capacity    # real-evaluator grouped CV
 python3 -m scripts.train_wide_lambdarank     # reproduce the wide model
 python3 -m scripts.cv_lambdarank_capacity --pool-depth 300 --profile wide_pool --seed 2026
+python3 -m scripts.cv_regularized_lambdarank # nested profile-grouped CV + early stopping
+python3 -m scripts.cv_deferral_policy        # profile-grouped deferral-policy comparison
 ```
 
 `scripts/compare_models.py` compares the hand-tuned score against logistic
@@ -208,8 +211,8 @@ Pass that implementation to `HybridRetriever`. Keep embeddings and generated ind
 - Rule-based slot extraction is aligned with the clean-text competition scope but is not a general natural-language parser.
 - Public-set tuning may not transfer perfectly to private users and products; route weights should be validated with ablation tests.
 - Both LambdaRank models intentionally optimize the public TechnicalScore and
-  have large full-fit/CV gaps. For private-score robustness, compare `wide`
-  against `lambdarank` and `logistic` before final submission.
+  have large full-fit/CV gaps. The stable logistic model is therefore the
+  default; `wide` and `lambdarank` require an explicit environment override.
 - Candidate-count estimation currently reflects the fused retrieval pool, not an exact filtered-catalog count.
 - The next iteration should compare a small local bi-encoder and cross-encoder against this offline framework, with latency and memory reported.
 

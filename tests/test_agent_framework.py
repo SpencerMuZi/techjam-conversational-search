@@ -4,6 +4,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from shopping_copilot.agent import ShoppingCopilotAgent
 from shopping_copilot.config import AgentConfig
@@ -160,21 +162,21 @@ class FrameworkTest(unittest.TestCase):
         )
 
         agent = ShoppingCopilotAgent(self.catalog_path)
-        self.assertIsInstance(
-            agent.retriever.reranker,
-            (PackagedLambdaRankReranker, PackagedLogisticReranker),
-        )
+        self.assertIsInstance(agent.retriever.reranker, PackagedLogisticReranker)
         # Feature-subset mapping: only the model's own features are consumed.
         self.assertTrue(set(agent.retriever.reranker.feature_names).issubset(set(FEATURE_NAMES)))
-        if isinstance(agent.retriever.reranker, PackagedLambdaRankReranker):
-            self.assertEqual(agent.retriever.reranker.meta["variant"], "wide")
-            self.assertEqual(agent.retriever.config.rerank_depth, 300)
         agent.reset("s", {"preference_tags": [], "summary": ""})
         out = agent.respond("s", "I'm looking for Shoes Fashion Sneakers, but I'm still exploring.", 1, 10)
         self.assertLessEqual(len(out["recommendations"]), 10)
 
         disabled = ShoppingCopilotAgent(self.catalog_path, AgentConfig(learned_reranker=False))
         self.assertIsNone(disabled.retriever.reranker)
+
+        with patch.dict("os.environ", {"SHOPPING_COPILOT_RERANKER": "wide"}):
+            wide = ShoppingCopilotAgent(self.catalog_path)
+        self.assertIsInstance(wide.retriever.reranker, PackagedLambdaRankReranker)
+        self.assertEqual(wide.retriever.reranker.meta["variant"], "wide")
+        self.assertEqual(wide.retriever.config.rerank_depth, 300)
 
     def test_feature_vector_width_is_stable(self) -> None:
         agent = ShoppingCopilotAgent(self.catalog_path)
@@ -211,6 +213,22 @@ class FrameworkTest(unittest.TestCase):
             ShoppingCopilotAgent._promote_confident_early_top(base, uncertain, 3, 0.6),
             base,
         )
+
+    def test_adaptive_deferral_is_default_and_can_be_disabled(self) -> None:
+        state = SimpleNamespace(route="browsing", hard_slots={}, soft_slots={})
+        recommendations = [("A", 8.0), ("B", 7.5)]
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertTrue(
+                ShoppingCopilotAgent._should_defer_recommendations(
+                    state, 1, "material", recommendations
+                )
+            )
+        with patch.dict("os.environ", {"SHOPPING_COPILOT_DEFERRAL": "none"}):
+            self.assertFalse(
+                ShoppingCopilotAgent._should_defer_recommendations(
+                    state, 1, "material", recommendations
+                )
+            )
 
     def test_agent_returns_contract_compliant_ranked_results(self) -> None:
         agent = ShoppingCopilotAgent(self.catalog_path)

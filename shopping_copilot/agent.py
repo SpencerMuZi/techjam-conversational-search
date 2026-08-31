@@ -135,7 +135,7 @@ class ShoppingCopilotAgent:
         volume, but hold the list for one turn while asking for another concrete
         preference.
         """
-        mode = os.environ.get("SHOPPING_COPILOT_DEFERRAL", "none").lower()
+        mode = os.environ.get("SHOPPING_COPILOT_DEFERRAL", "adaptive").lower()
         if mode == "none":
             return False
         if mode == "all":

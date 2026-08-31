@@ -24,15 +24,16 @@ class AgentConfig:
     # explicit intent override. Its top item may be promoted when the learned
     # ranker has a clear lead, improving time-to-conversion without replacing
     # the precise 120-candidate ranking used on every turn.
+    # This is inert for the default logistic model and preserves the explicit
+    # precise-LambdaRank mode's confidence-gated probe.
     early_pool_enabled: bool = True
     early_pool_depth: int = 300
     early_pool_margin: float = 0.60
     rrf_k: int = 60
     clarification_candidate_cutoff: int = 20
     max_query_terms: int = 48
-    # Load shopping_copilot/reranker_lr.json (stdlib-only linear model) as the
-    # reranker when present. Set False, or SHOPPING_COPILOT_RERANKER=manual, to
-    # fall back to the hand-tuned structured score.
+    # Load the stdlib-only linear reranker by default. Set False, or use
+    # SHOPPING_COPILOT_RERANKER=manual, to fall back to the structured score.
     learned_reranker: bool = True
     buying_weights: RouteWeights = field(
         default_factory=lambda: RouteWeights(
