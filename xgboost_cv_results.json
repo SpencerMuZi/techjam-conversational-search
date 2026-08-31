@@ -1,0 +1,107 @@
+{
+  "protocol": "5-fold KFold by session_id; no session appears in both train and validation",
+  "candidate_source": "V3 retrieves 300 candidates; target ASIN is used only as a training label",
+  "folds": [
+    {
+      "fold": 1,
+      "v3": {
+        "hit_rate_at_10": 0.975,
+        "mrr": 0.6875,
+        "mttc": 2.35,
+        "efficiency": 0.865,
+        "technical_score": 0.86675
+      },
+      "xgboost": {
+        "hit_rate_at_10": 1.0,
+        "mrr": 0.67625,
+        "mttc": 1.4,
+        "efficiency": 0.96,
+        "technical_score": 0.894875
+      }
+    },
+    {
+      "fold": 2,
+      "v3": {
+        "hit_rate_at_10": 0.95,
+        "mrr": 0.533988,
+        "mttc": 2.425,
+        "efficiency": 0.8575,
+        "technical_score": 0.806696
+      },
+      "xgboost": {
+        "hit_rate_at_10": 1.0,
+        "mrr": 0.578333,
+        "mttc": 1.2,
+        "efficiency": 0.98,
+        "technical_score": 0.8695
+      }
+    },
+    {
+      "fold": 3,
+      "v3": {
+        "hit_rate_at_10": 0.925,
+        "mrr": 0.58253,
+        "mttc": 2.525,
+        "efficiency": 0.8475,
+        "technical_score": 0.806759
+      },
+      "xgboost": {
+        "hit_rate_at_10": 1.0,
+        "mrr": 0.648641,
+        "mttc": 1.325,
+        "efficiency": 0.9675,
+        "technical_score": 0.888092
+      }
+    },
+    {
+      "fold": 4,
+      "v3": {
+        "hit_rate_at_10": 0.925,
+        "mrr": 0.524921,
+        "mttc": 2.45,
+        "efficiency": 0.855,
+        "technical_score": 0.790976
+      },
+      "xgboost": {
+        "hit_rate_at_10": 0.975,
+        "mrr": 0.645903,
+        "mttc": 1.6,
+        "efficiency": 0.94,
+        "technical_score": 0.869271
+      }
+    },
+    {
+      "fold": 5,
+      "v3": {
+        "hit_rate_at_10": 0.925,
+        "mrr": 0.63503,
+        "mttc": 2.825,
+        "efficiency": 0.8175,
+        "technical_score": 0.816509
+      },
+      "xgboost": {
+        "hit_rate_at_10": 1.0,
+        "mrr": 0.708571,
+        "mttc": 1.3,
+        "efficiency": 0.97,
+        "technical_score": 0.906571
+      }
+    }
+  ],
+  "mean": {
+    "v3": {
+      "hit_rate_at_10": 0.94,
+      "mrr": 0.592794,
+      "mttc": 2.515,
+      "efficiency": 0.8485,
+      "technical_score": 0.817538
+    },
+    "xgboost": {
+      "hit_rate_at_10": 0.995,
+      "mrr": 0.65154,
+      "mttc": 1.365,
+      "efficiency": 0.9635,
+      "technical_score": 0.885662
+    }
+  }
+}

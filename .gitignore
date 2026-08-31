@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+data/catalog.jsonl
+data/catalog.jsonl.gz
+catalog.jsonl
+catalog.jsonl.gz
+catalog.xlsx
+*.zip
+*.tar.gz
+.env
+.env.*
