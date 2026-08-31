@@ -108,7 +108,7 @@ experiments/hard_negatives.py     A/B: catalog-mined confusable negatives (rejec
 experiments/train_reranker.py     fit the shipped logistic model -> reranker_lr.json
 scripts/analyze_results.py        compact metric reporting
 scripts/compare_models.py         four-way reranker comparison report
-scripts/demo_session.py           headless multi-turn demonstration
+scripts/demo_session.py           headless demo; --sample replays a public dev session
 tests/                             evaluator and framework tests
 ```
 
@@ -174,11 +174,23 @@ The first command builds the in-memory index once, evaluates 200 sessions, and w
 
 ## Run a headless demo
 
+Replay one labelled public dev session through the official customer simulator
+(the "one demonstrated multi-turn session" deliverable). The transcript shows
+each turn, the agent's clarification, when it holds the ranking for a turn, the
+Top-5, and where/when the hidden target is found:
+
 ```bash
-python3 scripts/demo_session.py
+python3 scripts/demo_session.py --sample public_0072   # intent_override -> target rank 1 on turn 3
+python3 scripts/demo_session.py --sample public_0050   # boundary "use your judgment" -> target rank 1 on turn 2
+python3 scripts/demo_session.py --sample public_0021   # browsing, first turn deferred -> target rank 1 on turn 2
+python3 scripts/demo_session.py --sample public_0072 > docs/demo_transcript.txt
 ```
 
-The script demonstrates API responses without requiring a UI. It can also accept custom turns:
+Replay imports read-only helpers from `evaluator.local_evaluator` only to
+reproduce the deterministic customer policy for display; the evaluator is not
+modified and the target `parent_asin` is never passed to the agent.
+
+Scripted mode needs no evaluator and takes explicit turns:
 
 ```bash
 python3 scripts/demo_session.py \
