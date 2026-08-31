@@ -209,9 +209,21 @@ class HybridRetriever:
         self.last_context = None
         self.last_signals = None
 
-    def retrieve(self, context: SearchContext, top_k: int) -> RetrievalResult:
-        depth = self.config.retrieval_depth
-        weights = self.config.weights_for(context.route)
+    def retrieve(
+        self,
+        context: SearchContext,
+        top_k: int,
+        config_override: AgentConfig | None = None,
+    ) -> RetrievalResult:
+        """Retrieve and rank products under the default or an ephemeral config.
+
+        The override lets the orchestration layer inspect a wider candidate pool
+        without mutating the retriever's stable configuration or building a
+        second in-memory catalog index.
+        """
+        config = config_override or self.config
+        depth = config.retrieval_depth
+        weights = config.weights_for(context.route)
         constraint_text = " ".join((*context.hard_values, *context.soft_values))
         keyword_text = " ".join(
             (context.current_message, context.category, constraint_text, " ".join(context.profile_tags))
@@ -262,11 +274,11 @@ class HybridRetriever:
                 continue
             for rank, parent_asin in enumerate(ranked, start=1):
                 if parent_asin in self.index.documents:
-                    fused[parent_asin] = fused.get(parent_asin, 0.0) + weight / (self.config.rrf_k + rank)
+                    fused[parent_asin] = fused.get(parent_asin, 0.0) + weight / (config.rrf_k + rank)
 
         if not fused:
             fused = {
-                asin: 1.0 / (self.config.rrf_k + rank)
+                asin: 1.0 / (config.rrf_k + rank)
                 for rank, asin in enumerate(self.index.popular(depth), start=1)
             }
 
@@ -280,12 +292,12 @@ class HybridRetriever:
                     precise_rank[parent_asin] = rank
 
         candidate_count = len(fused)
-        initial = sorted(fused, key=fused.get, reverse=True)[: self.config.rerank_depth]
+        initial = sorted(fused, key=fused.get, reverse=True)[: config.rerank_depth]
         # Guarantee the head of each precise route reaches the reranker even if a
         # thin fused score would otherwise drop it below the rerank cutoff.
         seen = set(initial)
         for ranked in (keyword_ranked, constraint_ranked):
-            for parent_asin in ranked[: self.config.precise_seed]:
+            for parent_asin in ranked[: config.precise_seed]:
                 if parent_asin not in seen and parent_asin in self.index.documents:
                     seen.add(parent_asin)
                     initial.append(parent_asin)

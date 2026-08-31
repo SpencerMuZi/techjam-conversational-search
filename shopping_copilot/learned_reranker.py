@@ -15,6 +15,7 @@ from .features import FEATURE_NAMES
 
 DEFAULT_WEIGHTS_PATH = Path(__file__).with_name("reranker_lr.json")
 DEFAULT_LGBM_PATH = Path(__file__).with_name("reranker_lgbm.txt")
+DEFAULT_WIDE_LGBM_PATH = Path(__file__).with_name("reranker_wide_lgbm.txt")
 
 
 class PackagedLambdaRankReranker:
@@ -22,13 +23,18 @@ class PackagedLambdaRankReranker:
 
     trainable = False
 
-    def __init__(self, booster) -> None:
+    def __init__(self, booster, variant: str = "precise") -> None:
         self.booster = booster
         self.feature_names = list(FEATURE_NAMES)
-        self.meta = {"model": "lightgbm_lambdarank", "features": len(FEATURE_NAMES)}
+        self.meta = {
+            "model": "lightgbm_lambdarank",
+            "variant": variant,
+            "features": len(FEATURE_NAMES),
+            "pool_depth": 300 if variant == "wide" else None,
+        }
 
     @classmethod
-    def load(cls, path: str | Path = DEFAULT_LGBM_PATH):
+    def load(cls, path: str | Path = DEFAULT_LGBM_PATH, variant: str = "precise"):
         path = Path(path)
         if not path.exists():
             return None
@@ -36,7 +42,7 @@ class PackagedLambdaRankReranker:
             import lightgbm as lgb
         except (ImportError, OSError):
             return None
-        return cls(lgb.Booster(model_file=str(path)))
+        return cls(lgb.Booster(model_file=str(path)), variant=variant)
 
     def score(self, feature_rows):
         import numpy as np
@@ -90,10 +96,16 @@ def default_reranker(config_enabled: bool = True):
     """Return the packaged reranker unless disabled by config or env override."""
     if not config_enabled:
         return None
-    mode = os.environ.get("SHOPPING_COPILOT_RERANKER", "lambdarank").lower()
+    mode = os.environ.get("SHOPPING_COPILOT_RERANKER", "wide").lower()
     if mode == "manual":
         return None
-    if mode in {"lambdarank", "lgbm", "auto"}:
+    if mode in {"wide", "wide_lambdarank", "auto"}:
+        reranker = PackagedLambdaRankReranker.load(
+            DEFAULT_WIDE_LGBM_PATH, variant="wide"
+        )
+        if reranker is not None:
+            return reranker
+    if mode in {"lambdarank", "lgbm", "auto", "wide", "wide_lambdarank"}:
         reranker = PackagedLambdaRankReranker.load()
         if reranker is not None:
             return reranker

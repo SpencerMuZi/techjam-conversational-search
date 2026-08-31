@@ -20,6 +20,13 @@ class AgentConfig:
     retrieval_depth: int = 250
     rerank_depth: int = 120
     precise_seed: int = 100
+    # A wider pool is consulted only on the first turn and immediately after an
+    # explicit intent override. Its top item may be promoted when the learned
+    # ranker has a clear lead, improving time-to-conversion without replacing
+    # the precise 120-candidate ranking used on every turn.
+    early_pool_enabled: bool = True
+    early_pool_depth: int = 300
+    early_pool_margin: float = 0.60
     rrf_k: int = 60
     clarification_candidate_cutoff: int = 20
     max_query_terms: int = 48

@@ -13,7 +13,19 @@ from evaluator.local_evaluator import catalog_index, evaluate, load_jsonl
 from experiments.cv import sample_training_rows
 from experiments.dataset import _agent_with_index, build_dataset
 from scripts.tune_lambdarank import BoosterReranker, EXTENDED_CONFIGS, fit_ranker
+from shopping_copilot.config import AgentConfig
 from shopping_copilot.retrieval import CatalogIndex
+
+
+WIDE_POOL_CONFIG = {
+    "name": "wide_pool",
+    "num_leaves": 127,
+    "min_child_samples": 2,
+    "n_estimators": 800,
+    "learning_rate": 0.04,
+    "n_hard_neg": 10**9,
+    "n_rand_neg": 0,
+}
 
 
 def main() -> None:
@@ -22,13 +34,27 @@ def main() -> None:
     parser.add_argument("--dataset", default="data/public_set.jsonl")
     parser.add_argument("--splits", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--pool-depth", type=int, default=0)
+    parser.add_argument("--profile", choices=("extreme_all", "wide_pool"), default="extreme_all")
     args = parser.parse_args()
 
-    config = next(row for row in EXTENDED_CONFIGS if row["name"] == "extreme_all")
+    config = (
+        WIDE_POOL_CONFIG
+        if args.profile == "wide_pool"
+        else next(row for row in EXTENDED_CONFIGS if row["name"] == "extreme_all")
+    )
+    agent_config = None
+    if args.pool_depth:
+        agent_config = AgentConfig(
+            retrieval_depth=args.pool_depth,
+            rerank_depth=args.pool_depth,
+            precise_seed=args.pool_depth,
+            early_pool_enabled=False,
+        )
     index = CatalogIndex(args.catalog)
     samples = load_jsonl(args.dataset)
     catalog_ids, categories, products = catalog_index(args.catalog)
-    data = build_dataset(args.catalog, args.dataset, index=index)
+    data = build_dataset(args.catalog, args.dataset, index=index, config=agent_config)
     n_sessions = int(data.session_idx.max()) + 1
     scenarios = np.empty(n_sessions, dtype=object)
     for session_idx, scenario in zip(data.session_idx, data.scenario):
@@ -54,7 +80,7 @@ def main() -> None:
         model = fit_ranker(
             data.X[rows], data.y[rows], data.group_id[rows], config, args.seed
         )
-        agent = _agent_with_index(index)
+        agent = _agent_with_index(index, agent_config)
         agent.retriever.capture = False
         agent.retriever.reranker = BoosterReranker(model.booster_)
         test_samples = [samples[index] for index in test_sessions]

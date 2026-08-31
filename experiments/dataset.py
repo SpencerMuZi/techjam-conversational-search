@@ -50,7 +50,9 @@ def _shared_index(catalog_path: str) -> CatalogIndex:
     return CatalogIndex(catalog_path)
 
 
-def _agent_with_index(index: CatalogIndex) -> ShoppingCopilotAgent:
+def _agent_with_index(index: CatalogIndex, config=None) -> ShoppingCopilotAgent:
+    from dataclasses import replace
+
     from shopping_copilot.clarification import ClarificationPolicy
     from shopping_copilot.config import AgentConfig
     from shopping_copilot.context import ContextBuilder
@@ -60,7 +62,7 @@ def _agent_with_index(index: CatalogIndex) -> ShoppingCopilotAgent:
     from shopping_copilot.state import SessionStore
 
     agent = ShoppingCopilotAgent.__new__(ShoppingCopilotAgent)
-    agent.config = AgentConfig()
+    agent.config = config or AgentConfig(early_pool_enabled=False)
     agent.sessions = SessionStore()
     agent.extractor = SlotExtractor()
     agent.context_builder = ContextBuilder()
@@ -73,6 +75,13 @@ def _agent_with_index(index: CatalogIndex) -> ShoppingCopilotAgent:
     retriever.last_candidates = []
     agent.retriever = retriever
     agent.clarification = ClarificationPolicy(agent.config)
+    agent._early_config = replace(
+        agent.config,
+        retrieval_depth=max(agent.config.retrieval_depth, agent.config.early_pool_depth),
+        rerank_depth=max(agent.config.rerank_depth, agent.config.early_pool_depth),
+        precise_seed=max(agent.config.precise_seed, agent.config.early_pool_depth),
+        early_pool_enabled=False,
+    )
     return agent
 
 
@@ -96,13 +105,14 @@ def build_dataset(
     dataset_path: str = "data/public_set.jsonl",
     index: CatalogIndex | None = None,
     mine_k: int = 0,
+    config=None,
 ) -> RerankDataset:
     from shopping_copilot.features import candidate_features
 
     samples = load_jsonl(dataset_path)
     catalog_ids, categories, products = catalog_index(catalog_path)
     index = index or _shared_index(catalog_path)
-    agent = _agent_with_index(index)
+    agent = _agent_with_index(index, config)
 
     rows: list[list[float]] = []
     labels: list[int] = []

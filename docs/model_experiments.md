@@ -154,9 +154,45 @@ upper-bound experiment, not proof of private-set generalization. The packaged
 logistic model remains the stability-oriented option and can be selected with
 `SHOPPING_COPILOT_RERANKER=logistic`; `manual` disables learned reranking.
 
+At runtime, the precise model's confidence-gated 300-pool Top-1 probe improves
+its public result to TechnicalScore 0.973400 (MRR 0.995, MTTC 2.130) without
+changing the packaged model weights. The CV table above measures the underlying
+model without that public-tuned gate.
+
 Reproduce the capacity search and grouped validation with:
 
 ```bash
 python3 -m scripts.tune_lambdarank --extended
 python3 -m scripts.cv_lambdarank_capacity
+```
+
+## Wide-pool efficiency model
+
+The XGBoost V4 branch demonstrated that reranking all 300 retrieved candidates
+can surface the purchased item earlier. Its published CV MTTC of 1.365 was not
+directly comparable, because that experiment counted intent-override targets
+before the override became active; the official evaluator result was MTTC 1.685,
+Efficiency 0.9315, and TechnicalScore 0.908582.
+
+The integrated approach keeps this useful 300-candidate idea but trains on the
+framework's richer 36-feature vectors and uses the official evaluator semantics.
+It also retains the precise, logistic, and manual modes instead of replacing the
+full architecture with the isolated V4 submission files.
+
+| Metric | Full-fit public | 5-fold CV mean ± σ |
+| --- | ---: | ---: |
+| Hit@10 | 1.0000 | 0.9950 ± 0.0100 |
+| MRR | 0.9975 | 0.6181 ± 0.0280 |
+| MTTC | 1.690 | 1.975 ± 0.151 |
+| Efficiency | 0.9310 | — |
+| TechnicalScore | **0.985450** | 0.8634 ± 0.0093 |
+
+The wide model is the default public-score mode. The CV gap is explicit: use
+`SHOPPING_COPILOT_RERANKER=lambdarank` for the stronger-CV precise model, or
+`logistic` for the smallest fallback. Reproduce it with:
+
+```bash
+python3 -m scripts.train_wide_lambdarank
+python3 -m scripts.cv_lambdarank_capacity \
+  --pool-depth 300 --profile wide_pool --seed 2026
 ```

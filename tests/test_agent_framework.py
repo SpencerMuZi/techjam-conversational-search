@@ -10,6 +10,7 @@ from shopping_copilot.config import AgentConfig
 from shopping_copilot.features import FEATURE_NAMES
 from shopping_copilot.intent import IntentRouter
 from shopping_copilot.rerankers import ManualReranker
+from shopping_copilot.retrieval import RetrievalResult
 from shopping_copilot.slots import SlotExtractor
 from shopping_copilot.state import ConversationState
 
@@ -165,6 +166,9 @@ class FrameworkTest(unittest.TestCase):
         )
         # Feature-subset mapping: only the model's own features are consumed.
         self.assertTrue(set(agent.retriever.reranker.feature_names).issubset(set(FEATURE_NAMES)))
+        if isinstance(agent.retriever.reranker, PackagedLambdaRankReranker):
+            self.assertEqual(agent.retriever.reranker.meta["variant"], "wide")
+            self.assertEqual(agent.retriever.config.rerank_depth, 300)
         agent.reset("s", {"preference_tags": [], "summary": ""})
         out = agent.respond("s", "I'm looking for Shoes Fashion Sneakers, but I'm still exploring.", 1, 10)
         self.assertLessEqual(len(out["recommendations"]), 10)
@@ -180,6 +184,33 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(agent.retriever.last_candidates)
         for _, vector in agent.retriever.last_candidates:
             self.assertEqual(len(vector), len(FEATURE_NAMES))
+
+    def test_early_pool_promotes_only_a_confident_top_one(self) -> None:
+        base = RetrievalResult(
+            recommendations=[("BASE_A", 4.0), ("BASE_B", 3.0), ("BASE_C", 2.0)],
+            candidate_count=120,
+        )
+        confident = RetrievalResult(
+            recommendations=[("WIDE", 5.0), ("OTHER", 4.3)],
+            candidate_count=300,
+        )
+        promoted = ShoppingCopilotAgent._promote_confident_early_top(
+            base, confident, 3, 0.6
+        )
+        self.assertEqual(
+            [asin for asin, _ in promoted.recommendations],
+            ["WIDE", "BASE_A", "BASE_B"],
+        )
+        self.assertEqual(promoted.candidate_count, 300)
+
+        uncertain = RetrievalResult(
+            recommendations=[("WIDE", 5.0), ("OTHER", 4.5)],
+            candidate_count=300,
+        )
+        self.assertIs(
+            ShoppingCopilotAgent._promote_confident_early_top(base, uncertain, 3, 0.6),
+            base,
+        )
 
     def test_agent_returns_contract_compliant_ranked_results(self) -> None:
         agent = ShoppingCopilotAgent(self.catalog_path)

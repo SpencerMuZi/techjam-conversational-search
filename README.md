@@ -4,24 +4,26 @@ An offline-first, runtime-adaptive shopping agent for the TechJam Conversational
 
 ## Current public-set result
 
-| Metric | Weak starter | Manual | Logistic | LambdaRank |
-| --- | ---: | ---: | ---: | ---: |
-| Hit Rate@10 | 0.1250 | 0.9450 | 0.9950 | **0.9950** |
-| MRR | 0.068034 | 0.517153 | 0.763129 | **0.9950** |
-| MTTC | 9.81 | 3.655 | 2.280 | **2.230** |
-| Efficiency | 0.1190 | 0.7345 | 0.8720 | **0.8770** |
-| TechnicalScore | 0.106710 | 0.774546 | 0.900839 | **0.971400** |
+| Metric | Weak starter | Manual | Logistic | Precise LambdaRank | Wide LambdaRank |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hit Rate@10 | 0.1250 | 0.9450 | 0.9950 | 0.9950 | **1.0000** |
+| MRR | 0.068034 | 0.517153 | 0.763129 | 0.9950 | **0.9975** |
+| MTTC | 9.81 | 3.655 | 2.280 | 2.130 | **1.690** |
+| Efficiency | 0.1190 | 0.7345 | 0.8720 | 0.8870 | **0.9310** |
+| TechnicalScore | 0.106710 | 0.774546 | 0.900839 | 0.973400 | **0.985450** |
 
 Official deterministic evaluator on the 200-session public development set;
 development results, not a claim about the private 800-session score. Aggregate
 snapshot in `docs/framework_results.json`.
 
-The default learned reranker is a 36-feature LightGBM LambdaRank model trained
-with every in-pool negative. The `0.9714` number is a full-fit public-development
+The default `wide` reranker is a 36-feature LightGBM LambdaRank model trained on
+300-deep candidate pools. The `0.98545` number is a full-fit public-development
 score, not a private-set estimate: its session-grouped CV TechnicalScore is
-`0.8832 ± 0.0236`, so it has a material overfitting gap. The smaller 11-feature
-logistic model remains available as the more stable fallback. Select with
-`SHOPPING_COPILOT_RERANKER=lambdarank|logistic|manual`; see
+`0.8634 ± 0.0093`, so it has a material overfitting gap. The precise `lambdarank`
+mode has a lower public score (`0.9734` with its confidence gate) but its underlying
+model has stronger CV (`0.8832 ± 0.0236`), and
+the 11-feature logistic model remains the small stability-oriented fallback.
+Select with `SHOPPING_COPILOT_RERANKER=wide|lambdarank|logistic|manual`; see
 `docs/model_experiments.md`.
 
 ## What is implemented
@@ -38,8 +40,11 @@ logistic model remains available as the more stable fallback. Select with
   promoted toward rank 1 instead of being flattened by category peers.
 - The head of each precise route is seeded straight into the reranker so a target
   BM25 ranked highly is never dropped by a thin fused score.
-- A packaged LightGBM LambdaRank reranker over 36 shared features, with a ~2 KB
-  standard-library logistic fallback and a manual-score fallback.
+- Two packaged LightGBM LambdaRank rerankers over 36 shared features: a precise
+  120-candidate model and an efficiency-oriented 300-candidate model, with a
+  ~2 KB standard-library logistic fallback and a manual-score fallback.
+- A confidence-gated early Top-1 policy available to the precise model; it
+  consults the wider pool only on turn one or an explicit intent override.
 - A pluggable semantic retrieval interface with an offline no-op fallback.
 - Exact compliance with the official Agent response contract.
 - No API key, hosted model, model download, or network access is required at inference.
@@ -91,6 +96,7 @@ shopping_copilot/rerankers.py     Manual / logistic / forest / LambdaRank (exper
 shopping_copilot/learned_reranker.py  packaged LambdaRank loader + linear fallback
 shopping_copilot/reranker_lr.json 11-feature logistic-regression coefficients
 shopping_copilot/reranker_lgbm.txt submitted high-capacity LambdaRank model
+shopping_copilot/reranker_wide_lgbm.txt 300-candidate efficiency model
 shopping_copilot/semantic.py      semantic retrieval adapter boundary
 experiments/dataset.py            replay public sessions, capture rerank features
 experiments/cv.py                 session-grouped CV harness (real evaluator per fold)
@@ -145,6 +151,8 @@ python3 -m experiments.hard_negatives       # A/B mined hard negatives
 python3 -m experiments.train_reranker --features "<comma,separated>"   # refit shipped model
 python3 -m scripts.tune_lambdarank           # capacity / negative-pool search
 python3 -m scripts.cv_lambdarank_capacity    # real-evaluator grouped CV
+python3 -m scripts.train_wide_lambdarank     # reproduce the wide model
+python3 -m scripts.cv_lambdarank_capacity --pool-depth 300 --profile wide_pool --seed 2026
 ```
 
 `scripts/compare_models.py` compares the hand-tuned score against logistic
@@ -199,9 +207,9 @@ Pass that implementation to `HybridRetriever`. Keep embeddings and generated ind
 - The current semantic route is an extension point rather than a bundled dense model.
 - Rule-based slot extraction is aligned with the clean-text competition scope but is not a general natural-language parser.
 - Public-set tuning may not transfer perfectly to private users and products; route weights should be validated with ablation tests.
-- The submitted high-capacity LambdaRank model intentionally maximizes the public
-  TechnicalScore and has a large full-fit/CV gap. For private-score robustness,
-  compare it against `SHOPPING_COPILOT_RERANKER=logistic` before final submission.
+- Both LambdaRank models intentionally optimize the public TechnicalScore and
+  have large full-fit/CV gaps. For private-score robustness, compare `wide`
+  against `lambdarank` and `logistic` before final submission.
 - Candidate-count estimation currently reflects the fused retrieval pool, not an exact filtered-catalog count.
 - The next iteration should compare a small local bi-encoder and cross-encoder against this offline framework, with latency and memory reported.
 

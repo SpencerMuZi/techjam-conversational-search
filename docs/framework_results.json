@@ -1,31 +1,31 @@
 {
   "dataset": "data/public_set.jsonl",
   "sample_count": 200,
-  "reranker": "LightGBM LambdaRank (36 features, all in-pool negatives)",
-  "hit_rate_at_10": 0.995,
-  "mrr": 0.995,
-  "mttc": 2.23,
-  "efficiency": 0.877,
-  "technical_score": 0.9714,
+  "reranker": "Wide LightGBM LambdaRank (36 features, 300-deep candidate pools)",
+  "hit_rate_at_10": 1.0,
+  "mrr": 0.9975,
+  "mttc": 1.69,
+  "efficiency": 0.931,
+  "technical_score": 0.98545,
   "reported_token_usage": {
     "prompt_tokens": 0,
     "completion_tokens": 0,
     "total_tokens": 0
   },
   "scenario_metrics": {
-    "boundary": {"sample_count": 10, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 1.6},
-    "browsing": {"sample_count": 80, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 2.075},
-    "buying": {"sample_count": 80, "hit_rate_at_10": 0.9875, "mrr": 0.9875, "mttc": 1.7125},
-    "intent_override": {"sample_count": 30, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 4.233333}
+    "boundary": {"sample_count": 10, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 1.5},
+    "browsing": {"sample_count": 80, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 1.375},
+    "buying": {"sample_count": 80, "hit_rate_at_10": 1.0, "mrr": 0.99375, "mttc": 1.2875},
+    "intent_override": {"sample_count": 30, "hit_rate_at_10": 1.0, "mrr": 1.0, "mttc": 3.666667}
   },
   "cross_validation": {
     "protocol": "5-fold scenario-stratified, session-grouped, real evaluator",
     "hit_rate_at_10_mean": 0.995,
-    "mrr_mean": 0.711379,
-    "mrr_std": 0.07081,
-    "mttc_mean": 2.385,
-    "technical_score_mean": 0.883214,
-    "technical_score_std": 0.02361
+    "mrr_mean": 0.618075,
+    "mrr_std": 0.028037,
+    "mttc_mean": 1.975,
+    "technical_score_mean": 0.863423,
+    "technical_score_std": 0.009294
   },
-  "note": "The 0.9714 score is a full-fit public-development result and is optimistically biased. The packaged 11-feature logistic fallback has materially lower public score but stronger CV stability."
+  "note": "The 0.98545 score is a full-fit public-development result and is optimistically biased. Use SHOPPING_COPILOT_RERANKER=lambdarank or logistic for more conservative alternatives."
 }
