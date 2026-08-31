@@ -43,6 +43,12 @@ organizer's private evaluation set.
 
 The mean cross-validation TechnicalScore was 0.885662 for the XGBoost reranker,
 compared with 0.817538 for the V3 ordering over the same candidate pools. The
-separate `public_evaluation_results.json` is a post-training smoke test over the
-same public sessions used to fit the included model; it is intentionally not
-reported as an unbiased performance estimate.
+cross-validation metrics are:
+
+| Metric | V3 candidate ordering | V4 XGBoost reranker |
+| --- | ---: | ---: |
+| HitRate@10 | 0.940000 | **0.995000** |
+| MRR | 0.592794 | **0.651540** |
+| MTTC | 2.515000 | **1.365000** |
+| Efficiency | 0.848500 | **0.963500** |
+| TechnicalScore | 0.817538 | **0.885662** |
