@@ -1,0 +1,21 @@
+# Competition data and release archives: obtain these from the official source.
+data/catalog.jsonl
+data/catalog.jsonl.gz
+catalog.jsonl
+catalog.jsonl.gz
+catalog.xlsx
+SHA256SUMS
+*.zip
+*.tar.gz
+
+# Runtime artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+results.json
+
+# Secrets and local configuration
+.env
+.env.*
+*.pem
+*.key
