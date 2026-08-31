@@ -64,14 +64,8 @@ def _agent_with_index(index: CatalogIndex) -> ShoppingCopilotAgent:
     agent.sessions = SessionStore()
     agent.extractor = SlotExtractor()
     agent.context_builder = ContextBuilder()
-    retriever = HybridRetriever.__new__(HybridRetriever)
-    retriever.config = agent.config
-    retriever.index = index
-    retriever.semantic = NullSemanticRetriever()
-    retriever.reranker = None
-    retriever.capture = True
-    retriever.last_candidates = []
-    agent.retriever = retriever
+    agent.retriever = HybridRetriever(None, agent.config, index=index)
+    agent.retriever.capture = True
     agent.clarification = ClarificationPolicy(agent.config)
     return agent
 

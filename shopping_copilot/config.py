@@ -27,6 +27,12 @@ class AgentConfig:
     # reranker when present. Set False, or SHOPPING_COPILOT_RERANKER=manual, to
     # fall back to the hand-tuned structured score.
     learned_reranker: bool = True
+    # Optional local cross-encoder re-scoring the linear reranker's shortlist.
+    # Off by default: it needs sentence-transformers + model weights. Enable via
+    # AgentConfig(cross_encoder=True) or SHOPPING_COPILOT_CROSS_ENCODER=1.
+    cross_encoder: bool = False
+    cross_encoder_depth: int = 20
+    cross_encoder_weight: float = 0.7
     buying_weights: RouteWeights = field(
         default_factory=lambda: RouteWeights(
             keyword=1.0,

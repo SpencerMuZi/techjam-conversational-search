@@ -145,6 +145,22 @@ class FrameworkTest(unittest.TestCase):
             [r["parent_asin"] for r in ported_out["recommendations"]],
         )
 
+    def test_cross_encoder_off_by_default_and_reorders_when_set(self) -> None:
+        from shopping_copilot.cross_encoder import CrossEncoderReranker
+
+        agent = ShoppingCopilotAgent(self.catalog_path)
+        self.assertIsNone(agent.retriever.cross_encoder)  # opt-in only
+
+        class _StubModel:
+            def predict(self, pairs, show_progress_bar=False):
+                # prefer the doc that mentions "leather"
+                return [1.0 if "leather" in d.lower() else -1.0 for _, d in pairs]
+
+        agent.retriever.cross_encoder = CrossEncoderReranker(_StubModel(), depth=5, weight=1.0)
+        agent.reset("s", {"preference_tags": [], "summary": ""})
+        out = agent.respond("s", "I'm looking for Shoes Fashion Sneakers. A key requirement is: leather.", 1, 10)
+        self.assertEqual(out["recommendations"][0]["parent_asin"], "LEATHER_SHOE")
+
     def test_learned_reranker_loads_and_is_wired(self) -> None:
         from shopping_copilot.learned_reranker import PackagedLogisticReranker
 

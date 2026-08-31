@@ -123,3 +123,25 @@ No gain, and CV variance rises (σ 0.020 → 0.029). The pool's top-by-fused ite
 are already the hard confusables; mined items sit outside any retrieval route
 (`constraint_recip` = 0, `rrf_fused_score` ≈ 0), a state the reranker never meets
 at inference, so they add noise. The shipped model keeps the baseline negatives.
+
+## Cross-encoder shortlist re-scoring (available, not enabled)
+
+`shopping_copilot/cross_encoder.py` re-scores the linear reranker's top-20 with a
+frozen `cross-encoder/ms-marco-MiniLM-L-6-v2` and blends
+`weight·z(ce) + (1−weight)·z(linear)` (`experiments/cross_encoder_ab.py`).
+
+| Arm | fold-0 MRR | fold-1 MRR | 5-fold trend |
+| --- | ---: | ---: | --- |
+| linear only | 0.781 | 0.730 | baseline |
+| + CE, weight 0.3 | 0.785 | 0.741 | ≈ baseline (within ±0.02 fold noise) |
+| + CE, weight 0.5 | 0.770 | 0.706 | slightly worse |
+| + CE, weight 0.7 | 0.722 | – | worse |
+| + CE, weight 0.9 | 0.575 | – | much worse, loses a hit |
+
+Zero-shot the CE is at best a wash and degrades sharply as its weight rises: the
+disclosed constraints are already literal catalog phrases (BM25 nails them), and
+a generic MS-MARCO relevance model has no notion of "which of these near-identical
+products was actually purchased" (the linear model leans hard on
+`log_rating_number` for that). It is wired in behind `AgentConfig(cross_encoder=True)`
+/ `SHOPPING_COPILOT_CROSS_ENCODER=1` and left **off** in the shipped config; a
+version fine-tuned on the 200 sessions is the only way it becomes a win.

@@ -176,13 +176,16 @@ class HybridRetriever:
         config: AgentConfig,
         semantic: SemanticRetriever | None = None,
         reranker=None,
+        index: "CatalogIndex | None" = None,
     ) -> None:
         self.config = config
-        self.index = CatalogIndex(catalog_path)
+        self.index = index if index is not None else CatalogIndex(catalog_path)
         self.semantic = semantic or NullSemanticRetriever()
         # Optional learned reranker: ``score(feature_rows) -> list[float]`` where a
         # higher value ranks earlier. ``None`` keeps the manual structured score.
         self.reranker = reranker
+        # Optional cross-encoder that re-scores the shortlist after ``reranker``.
+        self.cross_encoder = None
         # When True, ``retrieve`` stashes the exact (asin, feature vector) pool it
         # scored, so an offline experiment can build training data from it.
         self.capture = False
@@ -264,6 +267,8 @@ class HybridRetriever:
                 model_scores = self.reranker.score(feature_rows)
                 scored = list(zip(initial, (float(s) for s in model_scores)))
                 scored.sort(key=lambda item: item[1], reverse=True)
+                if self.cross_encoder is not None:
+                    scored = self.cross_encoder.rerank(context, scored, self.index.documents)
                 return RetrievalResult(recommendations=scored[:top_k], candidate_count=candidate_count)
 
         scored = [

@@ -87,6 +87,7 @@ shopping_copilot/retrieval.py     in-memory hybrid retrieval and reranking
 shopping_copilot/features.py      shared candidate feature vector (36 features)
 shopping_copilot/rerankers.py     Manual / logistic / forest / LambdaRank (experiments)
 shopping_copilot/learned_reranker.py  stdlib-only linear scorer for the shipped model
+shopping_copilot/cross_encoder.py optional local cross-encoder shortlist re-scoring (off by default)
 shopping_copilot/reranker_lr.json 11-feature logistic-regression coefficients
 shopping_copilot/semantic.py      semantic retrieval adapter boundary
 experiments/dataset.py            replay public sessions, capture rerank features
@@ -95,6 +96,7 @@ experiments/feature_select.py     L1 path + greedy forward feature selection
 experiments/validate_subset.py    real-evaluator CV for feature subsets
 experiments/weight_stability.py   coefficient stability across seeds x folds
 experiments/hard_negatives.py     A/B: catalog-mined confusable negatives (rejected)
+experiments/cross_encoder_ab.py    A/B: cross-encoder shortlist re-scoring
 experiments/train_reranker.py     fit the shipped logistic model -> reranker_lr.json
 scripts/analyze_results.py        compact metric reporting
 scripts/compare_models.py         four-way reranker comparison report
@@ -134,15 +136,17 @@ python3 scripts/compare_models.py          # 4-way session-grouped CV comparison
 python3 -m experiments.feature_select       # L1 path + greedy feature selection
 python3 -m experiments.validate_subset      # real-evaluator CV for feature subsets
 python3 -m experiments.weight_stability     # coefficient stability across seeds x folds
-python3 -m experiments.hard_negatives       # A/B mined hard negatives
+python3 -m experiments.hard_negatives       # A/B mined hard negatives (rejected)
+python3 -m experiments.cross_encoder_ab     # A/B cross-encoder re-scoring (needs sentence-transformers)
 python3 -m experiments.train_reranker --features "<comma,separated>"   # refit shipped model
 ```
 
 `scripts/compare_models.py` compares the hand-tuned score against logistic
 regression, random forest, and LightGBM LambdaRank; every fold is scored by the
 real evaluator on held-out sessions. See `docs/model_experiments.md` for the
-protocol and current results. These tools need scikit-learn / LightGBM; the
-shipped agent does not.
+protocol and current results. These tools need scikit-learn / LightGBM
+(cross_encoder_ab also needs sentence-transformers); the shipped agent needs none
+of them.
 
 ## Reproduce the public score
 

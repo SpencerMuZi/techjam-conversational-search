@@ -5,6 +5,7 @@ from pathlib import Path
 from .clarification import ClarificationPolicy
 from .config import AgentConfig
 from .context import ContextBuilder
+from .cross_encoder import load_cross_encoder
 from .learned_reranker import default_reranker
 from .retrieval import HybridRetriever
 from .slots import SlotExtractor
@@ -21,6 +22,11 @@ class ShoppingCopilotAgent:
         self.context_builder = ContextBuilder()
         self.retriever = HybridRetriever(catalog_path, self.config)
         self.retriever.reranker = default_reranker(self.config.learned_reranker)
+        self.retriever.cross_encoder = load_cross_encoder(
+            self.config.cross_encoder,
+            depth=self.config.cross_encoder_depth,
+            weight=self.config.cross_encoder_weight,
+        )
         self.clarification = ClarificationPolicy(self.config)
 
     def reset(self, session_id: str, user_profile: dict) -> None:

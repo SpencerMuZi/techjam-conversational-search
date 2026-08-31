@@ -1,6 +1,9 @@
 # Offline reranker-comparison experiments only (scripts/compare_models.py).
-# The shipped agent under starter/ + shopping_copilot/ stays standard-library only.
+# The shipped agent under starter/ + shopping_copilot/ stays standard-library only,
+# unless AgentConfig(cross_encoder=True), which additionally needs
+# sentence-transformers (+ a ~90 MB model download on first use).
 lightgbm>=4.5,<5
 scikit-learn>=1.5,<2
 numpy>=1.24
+sentence-transformers>=2.2,<4
 
