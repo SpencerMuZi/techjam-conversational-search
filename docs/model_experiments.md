@@ -142,6 +142,24 @@ Zero-shot the CE is at best a wash and degrades sharply as its weight rises: the
 disclosed constraints are already literal catalog phrases (BM25 nails them), and
 a generic MS-MARCO relevance model has no notion of "which of these near-identical
 products was actually purchased" (the linear model leans hard on
-`log_rating_number` for that). It is wired in behind `AgentConfig(cross_encoder=True)`
-/ `SHOPPING_COPILOT_CROSS_ENCODER=1` and left **off** in the shipped config; a
-version fine-tuned on the 200 sessions is the only way it becomes a win.
+`log_rating_number` for that).
+
+### Fine-tuned cross-encoder (also rejected)
+
+`experiments/finetune_cross_encoder.py` fine-tunes MiniLM on the captured
+(conversation, product) text pairs (label = is-target), one held-out fold
+(67 sessions):
+
+| Arm | MRR | Hit@10 |
+| --- | ---: | ---: |
+| linear only | 0.7179 | 1.000 |
+| + fine-tuned CE (L-6, 3 epochs), weight 0.3 | 0.7271 | 1.000 |
+| + fine-tuned CE, weight 0.5 | 0.7073 | 1.000 |
+| + fine-tuned CE, weight 1.0 | 0.5330 | 0.970 |
+
+Fine-tuning does not fix it: only a very light blend (weight 0.3) is positive,
+by +0.009 — inside the ±0.02 fold noise — and there is no robust operating point
+(0.3 helps, 0.5 already hurts). Training is ~49 min/fold on CPU.
+
+The cross-encoder path is wired in behind `AgentConfig(cross_encoder=True)` /
+`SHOPPING_COPILOT_CROSS_ENCODER=1` and left **off** in the shipped config.

@@ -96,11 +96,12 @@ experiments/feature_select.py     L1 path + greedy forward feature selection
 experiments/validate_subset.py    real-evaluator CV for feature subsets
 experiments/weight_stability.py   coefficient stability across seeds x folds
 experiments/hard_negatives.py     A/B: catalog-mined confusable negatives (rejected)
-experiments/cross_encoder_ab.py    A/B: cross-encoder shortlist re-scoring
+experiments/cross_encoder_ab.py    A/B: cross-encoder shortlist re-scoring (rejected)
+experiments/finetune_cross_encoder.py fine-tune + CV the cross-encoder (rejected)
 experiments/train_reranker.py     fit the shipped logistic model -> reranker_lr.json
 scripts/analyze_results.py        compact metric reporting
 scripts/compare_models.py         four-way reranker comparison report
-scripts/demo_session.py           headless multi-turn demonstration
+scripts/demo_session.py           headless demo: --sample replays a public session
 tests/                             evaluator and framework tests
 ```
 
@@ -137,7 +138,8 @@ python3 -m experiments.feature_select       # L1 path + greedy feature selection
 python3 -m experiments.validate_subset      # real-evaluator CV for feature subsets
 python3 -m experiments.weight_stability     # coefficient stability across seeds x folds
 python3 -m experiments.hard_negatives       # A/B mined hard negatives (rejected)
-python3 -m experiments.cross_encoder_ab     # A/B cross-encoder re-scoring (needs sentence-transformers)
+python3 -m experiments.cross_encoder_ab     # A/B zero-shot cross-encoder re-scoring (needs sentence-transformers)
+python3 -m experiments.finetune_cross_encoder --max-folds 1   # fine-tune + CV the cross-encoder
 python3 -m experiments.train_reranker --features "<comma,separated>"   # refit shipped model
 ```
 
@@ -159,11 +161,21 @@ The first command builds the in-memory index once, evaluates 200 sessions, and w
 
 ## Run a headless demo
 
+Replay one labelled public dev session through the official customer simulator
+(the "one demonstrated multi-turn session" deliverable) — the transcript shows
+each turn, the agent's clarification, the Top-5, and where/when the hidden target
+is found:
+
 ```bash
-python3 scripts/demo_session.py
+python3 scripts/demo_session.py --sample public_0072   # intent_override, hits rank 1 on turn 3
+python3 scripts/demo_session.py --sample public_0021 > docs/demo_transcript.txt
 ```
 
-The script demonstrates API responses without requiring a UI. It can also accept custom turns:
+Replay imports read-only helpers from `evaluator.local_evaluator` only to
+reproduce the deterministic customer policy for display; the evaluator is not
+modified and the target `parent_asin` is never passed to the agent.
+
+Scripted mode needs no evaluator and takes explicit turns:
 
 ```bash
 python3 scripts/demo_session.py \

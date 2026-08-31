@@ -36,17 +36,17 @@ class CrossEncoderReranker:
     # ------------------------------------------------------------------
     def build_query(self, context: SearchContext) -> str:
         parts: list[str] = []
+        if context.current_message:
+            parts.append(str(context.current_message))
         if context.category:
             parts.append(str(context.category))
-        seen = set(parts)
+        seen = {p.lower() for p in parts}
         for value in (*context.hard_values, *context.soft_values):
             v = str(value).strip()
             if v and v.lower() not in seen:
                 parts.append(v)
                 seen.add(v.lower())
-        if not parts and context.current_message:
-            parts.append(context.current_message)
-        return _clip("; ".join(parts), self.query_chars)
+        return _clip(" ; ".join(parts), self.query_chars)
 
     def build_doc(self, product: ProductDocument) -> str:
         parts = [product.title, product.features, product.details, product.description]

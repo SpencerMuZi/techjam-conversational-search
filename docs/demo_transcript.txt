@@ -1,0 +1,44 @@
+------------------------------------------------------------------------
+  sample public_0072  |  scenario: intent_override
+  hidden target: B09JG4V9ZR  Facitisu Womens Winter Warm Jacket Long Down Faux Fur Hooded Quilted Sherpa Lined Coat
+  profile tags : ['fit', 'material', 'style']
+
+------------------------------------------------------------------------
+  Turn 1
+  CUSTOMER : I'm looking for Rain & Anoraks Anoraks. Department: womens
+  AGENT    : I found a few possible matches. Do you have a preferred material?
+             (ask_attribute = material)
+  Top matches:
+    1. B01KPFK9ZA  FASHION BOOMY Women's Zip Up Safari Military Anorak Jacket with Hood Drawstring - Regula
+    2. B09JG4V9ZR  Facitisu Womens Winter Warm Jacket Long Down Faux Fur Hooded Quilted Sherpa Lined Coat  <-- TARGET
+    3. B08L83YQTZ  JTANIB Women Packable Rain Jacket Waterproof Lightweight Raincoat Hooded for Hiking Outd
+    4. B07BLNDH2D  chass¨¦ Clear Rain Jacket With Hood - Womens Sizes
+    5. B07KSRCVKF  Womens Rain Poncho Waterproof Raincoat with Hood Zipper Outdoor Hiking Biking
+
+------------------------------------------------------------------------
+  Turn 2
+  CUSTOMER : I don't have an additional preference for material.
+  AGENT    : I found a few possible matches. Which feature matters most to you?
+             (ask_attribute = feature)
+  Top matches:
+    1. B01KPFK9ZA  FASHION BOOMY Women's Zip Up Safari Military Anorak Jacket with Hood Drawstring - Regula
+    2. B09JG4V9ZR  Facitisu Womens Winter Warm Jacket Long Down Faux Fur Hooded Quilted Sherpa Lined Coat  <-- TARGET
+    3. B08L83YQTZ  JTANIB Women Packable Rain Jacket Waterproof Lightweight Raincoat Hooded for Hiking Outd
+    4. B07BLNDH2D  chass¨¦ Clear Rain Jacket With Hood - Womens Sizes
+    5. B07KSRCVKF  Womens Rain Poncho Waterproof Raincoat with Hood Zipper Outdoor Hiking Biking
+
+------------------------------------------------------------------------
+  Turn 3
+  CUSTOMER : Actually, ignore my earlier preference. What I need is: Faux Fur.
+  AGENT    : I found a few possible matches. What style or fit would you prefer?
+             (ask_attribute = style)
+  Top matches:
+    1. B09JG4V9ZR  Facitisu Womens Winter Warm Jacket Long Down Faux Fur Hooded Quilted Sherpa Lined Coat  <-- TARGET
+    2. B01KPFK9ZA  FASHION BOOMY Women's Zip Up Safari Military Anorak Jacket with Hood Drawstring - Regula
+    3. B071WPG92J  Opret 2 Pack Raincoats for Adults Reusable, EVA Rain Ponchos Lightweight Rain Coat Water
+    4. B08L83YQTZ  JTANIB Women Packable Rain Jacket Waterproof Lightweight Raincoat Hooded for Hiking Outd
+    5. B07BLNDH2D  chass¨¦ Clear Rain Jacket With Hood - Womens Sizes
+
+------------------------------------------------------------------------
+  RESULT: target found at rank 1, turn 3  (session ends)
+------------------------------------------------------------------------
