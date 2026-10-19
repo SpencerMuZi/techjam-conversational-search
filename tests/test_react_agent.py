@@ -220,6 +220,65 @@ class ReActTest(unittest.TestCase):
         self.assertEqual(agent.respond("s", "shoes", 1, 10)["usage"]["prompt_tokens"], 0)
         self.assertFalse(client.messages)
 
+    def test_hard_budget_rejects_unknown_and_excess_prices_before_finish(self):
+        from dataclasses import replace
+        client = ScriptedClient(
+            [action("update_search_state", hard_slots={"budget": ["under 50"]}, max_price=50)],
+            [action("search_products", query="shoes cotton")],
+            [action("finish", message="unknown", parent_asins=["COTTON_SHIRT"])],
+            [action("finish", message="expensive", parent_asins=["LEATHER_SHOE"])],
+            [action("finish", message="within budget", parent_asins=["BLACK_SHOE"])],
+        )
+        agent = self.agent(client)
+        index = agent.retriever.index
+        index.documents["COTTON_SHIRT"] = replace(index.documents["COTTON_SHIRT"], price=None)
+        response = agent.respond("s", "预算50以内", 1, 10)
+        self.assertEqual(response["recommendations"][0]["parent_asin"], "BLACK_SHOE")
+        self.assertIn("unknown price", agent.last_trace[2]["observation"]["error"])
+        self.assertIn("exceeds max_price", agent.last_trace[3]["observation"]["error"])
+
+    def test_hard_budget_needs_explicit_numeric_ceiling(self):
+        client = ScriptedClient(
+            [action("update_search_state", hard_slots={"budget": ["under 50"]})],
+            [action("search_products", query="shoes")],
+            [action("finish", message="missing ceiling", parent_asins=["BLACK_SHOE"])],
+            [action("update_search_state", max_price=50)],
+            [action("search_products", query="shoes")],
+            [action("finish", message="within budget", parent_asins=["BLACK_SHOE"])],
+        )
+        agent = self.agent(client)
+        agent.respond("s", "预算50以内", 1, 10)
+        self.assertIn("Set max_price", agent.last_trace[2]["observation"]["error"])
+
+    def test_budget_changes_reset_and_no_preference_clear_ceiling(self):
+        client = ScriptedClient(
+            [action("update_search_state", category="Shoes", hard_slots={"budget": ["under 100"]}, max_price=100)],
+            [action("ask_user", attribute="color", question="颜色？")],
+            [action("update_search_state", hard_slots={"budget": ["under 50"]}, max_price=50)],
+            [action("ask_user", attribute="size", question="尺码？")],
+            [action("update_search_state", no_preference=["budget"])],
+            [action("ask_user", attribute="brand", question="品牌？")],
+            [action("update_search_state", max_price=80)],
+            [action("update_search_state", category="T-Shirts", clear=True)],
+            [action("ask_user", attribute="size", question="上衣尺码？")],
+        )
+        agent = self.agent(client)
+        agent.respond("s", "预算100", 1, 10)
+        self.assertEqual(agent.sessions.get("s").max_price, 100)
+        agent.respond("s", "预算改50", 2, 10)
+        self.assertEqual(agent.sessions.get("s").max_price, 50)
+        agent.respond("s", "预算无所谓", 3, 10)
+        self.assertIsNone(agent.sessions.get("s").max_price)
+        agent.respond("s", "换成上衣", 4, 10)
+        self.assertIsNone(agent.sessions.get("s").max_price)
+
+    def test_budget_ceiling_rejects_nonfinite_negative_and_boolean_values(self):
+        from shopping_copilot.react import SCHEMAS, _validate
+        for value in (-1, float('nan'), float('inf'), True, "100"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                _validate({"max_price": value}, SCHEMAS["update_search_state"])
+
+
 
 class DeepSeekClientTest(unittest.TestCase):
     def response(self, **changes):

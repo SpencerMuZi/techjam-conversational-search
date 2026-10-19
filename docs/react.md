@@ -40,9 +40,13 @@ The controller validates tool names, JSON arguments, allowed fields/types,
 string/array bounds, duplicate IDs, observed IDs and `top_k`. A validation error
 becomes an observation so the model can repair its action on the next decision.
 Product IDs, rank scores and product facts originate in the local catalog/tools.
-Prompt instructions ask the model to verify constraints; semantic correctness
-of its prose and satisfaction of all constraints are not enforced by a formal
-filter. Prices in the catalog may lack currency; the assistant must not invent it.
+A hard budget requires an explicit numeric `max_price` before recommending.
+The terminal tool rejects unknown, invalid or over-limit prices; changing a hard
+budget resets the previous ceiling unless a replacement is supplied. Category
+changes and no-preference updates clear it. `max_price=null` clears the ceiling.
+Other constraint satisfaction and the semantic correctness of prose rely on
+model verification, rather than a formal filter. Prices in the catalog may lack
+currency; the assistant must not invent it.
 
 The active turn runs against a copy of session state. Only `ask_user` or `finish`
 commits it. A provider/protocol failure or exhausted step limit discards partial

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 from copy import deepcopy
 from dataclasses import replace
 
@@ -14,11 +15,18 @@ Choose the next tool from the current request, session state and tool observatio
 Call update_search_state to extract requirements from natural language before searching.
 Translate category/feature search terms into English for this English catalog, but reply
 in the user's language. Never invent user preferences. Preserve negations in constraints.
-Hard slots are must-haves; soft slots are preferences. Replace an attribute's values
+Hard slots are must-haves; soft slots are preferences. For a hard budget ceiling,
+set max_price to the numeric upper limit in update_search_state as well as the budget slot.
+When changing that limit, set max_price again. Unknown prices cannot satisfy a hard budget.
+Replace an attribute's values
 when the user corrects it; use an empty array to remove it. Clear the search on an
 intent/category change, retaining only requirements the user still wants.
 Use search_products, inspect results, then choose to refine search, inspect details,
 ask one useful question, or finish. You may search multiple times with different queries.
+Search is approximate and returns only candidates; never claim catalog-wide availability,
+exact counts, or that no catalog matches exist. Say "among the retrieved candidates".
+Keep replies concise and recommend only a few verified matches. Unknown or conflicting
+hard requirements may be discussed as alternatives but exclude them from recommendation IDs.
 Search results are candidates, not proof of satisfying all requirements. Verify must-haves
 against product details, including numeric price; disclose unknown or conflicting facts.
 Never claim stock, delivery, sizes, currency or discounts absent from the catalog.
@@ -50,6 +58,7 @@ SCHEMAS = {
         "category": _string(), "hard_slots": SLOTS, "soft_slots": SLOTS,
         "no_preference": _array({"type": "string", "enum": list(ATTRIBUTE_WORDS)}),
         "clear": {"type": "boolean"},
+        "max_price": {"type": ["number", "null"], "minimum": 0, "maximum": 100000000},
     }),
     "search_products": _object({"query": _string(600)}, ("query",)),
     "get_product_details": _object({"parent_asins": _array(_string(), 5)}, ("parent_asins",)),
@@ -75,6 +84,13 @@ TOOLS = [{"type": "function", "function": {
 
 def _validate(value, schema) -> None:
     kind = schema["type"]
+    if isinstance(kind, list):
+        if value is None and "null" in kind:
+            return
+        if "number" in kind and type(value) in (int, float) and math.isfinite(value):
+            if schema.get("minimum", -math.inf) <= value <= schema.get("maximum", math.inf):
+                return
+        raise ValueError("Expected a finite, non-negative numeric price or null")
     expected = {"object": dict, "array": list, "string": str, "boolean": bool}[kind]
     if type(value) is not expected:
         raise ValueError(f"Expected {kind}")
@@ -101,7 +117,7 @@ def _snapshot(state) -> dict:
         "hard_slots": state.hard_slots, "soft_slots": state.soft_slots,
         "no_preference": sorted(state.no_preference_attributes),
         "asked_attributes": state.asked_attributes,
-        "last_ask_attribute": state.last_ask_attribute,
+        "last_ask_attribute": state.last_ask_attribute, "max_price": state.max_price,
     }
 
 
@@ -171,7 +187,8 @@ class ReActController:
     def _product(self, asin: str, details=False) -> dict:
         product = self.owner.retriever.index.documents[asin]
         data = {"parent_asin": asin, "title": product.title[:300],
-                "categories": product.categories[:300], "price": product.price,
+                "categories": product.categories[:300], "price": (product.price if
+                    product.price is not None and math.isfinite(product.price) and product.price >= 0 else None),
                 "average_rating": product.average_rating, "features": product.features[:1000]}
         if details:
             data.update(details=product.details[:2000], description=product.description[:2000],
@@ -191,6 +208,7 @@ class ReActController:
                 state.asked_attributes.clear()
                 state.last_ask_attribute = None
                 state.category = ""
+                state.max_price = None
             state.category = category
             state.route = args.get("route", state.route)
             for kind in ("hard_slots", "soft_slots"):
@@ -202,10 +220,18 @@ class ReActController:
                     state.no_preference_attributes.discard(attribute)
                     if values:
                         destination[attribute] = list(dict.fromkeys(values))
+            if "budget" in args.get("hard_slots", {}):
+                state.max_price = None
+            if "budget" in args.get("soft_slots", {}):
+                state.max_price = None
+            if "max_price" in args:
+                state.max_price = args["max_price"]
             for attribute in args.get("no_preference", []):
                 state.hard_slots.pop(attribute, None)
                 state.soft_slots.pop(attribute, None)
                 state.no_preference_attributes.add(attribute)
+                if attribute == "budget":
+                    state.max_price = None
             # Previously observed candidates no longer establish eligibility after
             # requirements change; the model must search the updated state.
             self.observed.clear()
@@ -229,6 +255,13 @@ class ReActController:
             return {"message": args["question"], "ask_attribute": attribute, "recommendations": []}, True
         identifiers = args["parent_asins"]
         self._check_ids(identifiers)
+        if identifiers and state.hard_slots.get("budget") and state.max_price is None:
+            raise ValueError("Set max_price for the hard budget before recommending, or ask for clarification")
+        if state.max_price is not None:
+            for asin in identifiers:
+                price = self.owner.retriever.index.documents[asin].price
+                if price is None or not math.isfinite(price) or price < 0 or price > state.max_price:
+                    raise ValueError("A recommended product has unknown price or exceeds max_price; remove it from recommendation IDs")
         if len(identifiers) > self.top_k:
             raise ValueError("Recommendation count exceeds top_k")
         return {"message": args["message"], "ask_attribute": None, "recommendations": [

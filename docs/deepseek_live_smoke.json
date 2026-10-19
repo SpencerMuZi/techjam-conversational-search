@@ -1,0 +1,277 @@
+{
+  "started_at_utc": "2026-10-19T17:10:14.306693+00:00",
+  "model": "deepseek-flash",
+  "fallback_enabled": false,
+  "passed": true,
+  "usage": {
+    "prompt_tokens": 105394,
+    "completion_tokens": 2694
+  },
+  "tests": [
+    {
+      "session": "shopping",
+      "turn": 1,
+      "user_message": "想买一双日常走路穿的运动鞋，必须是真皮，预算100以内。请先看看有哪些选择，别编造没有标注的材质、价格或币种。",
+      "response": {
+        "message": "按“真皮 + 100 以内 + 日常走路”，我在检索到的候选里筛出这几款（价格与材质均来自商品标注，未标注的我不做猜测）：\n\n1. **ECCO Men's Soft Classic Retro Sneaker（男士）— 标注价 54.18，评分 4.3**\n   材质标注为 ECCO 全粒面真皮混合软麂皮，配轻量弹性鞋底和可拆卸缓震鞋垫，商品描述强调 all-day comfort，符合日常走路方向。\n\n2. **ROAN Men's Henson Leather Sneaker（男士）— 标注价 43.33，评分 3.7**\n   标注全粒面真皮、手工处理鞋面、复合外底带橡胶片、缓震鞋床。评分偏低（4 条评价），可以接受再考虑。\n\n3. **MARC JOSEPH NEW YORK 男士皮质休闲运动鞋 — 标注价 29.95，评分 3.8**\n   标注“breathable leather upper”（真皮鞋面）、可拆鞋垫、防滑弹性鞋底；亮点是价格最低。真皮表述为 leather upper，未明确是全粒面。\n\n暂不能确认为满足条件（仅作说明，不列入推荐）：\n- **Dockers Gilmore**、**ECCO Soft 7** 都标注真皮，但检索结果中**没有价格**，无法判断是否在 100 以内。\n- Kirkland Signature 男士运动鞋标注 100% Leather，但同样**无价格信息**。\n\n另外两点提醒：\n- 目录里**没有标注币种**，上面的数字是商品价格字段原值，请以结算页显示为准；也没有库存、折扣或尺码信息可依据。\n- 你没说性别/尺码，上面三款都是男款。如果你需要女款，或想指定价格更低/更高评分优先，告诉我，我再按条件筛一次。",
+        "ask_attribute": null,
+        "recommendations": [
+          {
+            "parent_asin": "B0C678YX1T",
+            "score": -8.21758353
+          },
+          {
+            "parent_asin": "B085N6DCCF",
+            "score": -9.53327666
+          },
+          {
+            "parent_asin": "B095ZSYL1P",
+            "score": -7.54809736
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 26921,
+          "completion_tokens": 800
+        }
+      },
+      "checks": {
+        "no_fallback": true,
+        "live_token_usage": true,
+        "valid_catalog_ids": true,
+        "unique_ids": true,
+        "top_k": true,
+        "terminal_action": true,
+        "hard_budget_gate": true,
+        "hard_budget_prices": true
+      },
+      "state": {
+        "category": "sneakers",
+        "route": "buying",
+        "hard_slots": {
+          "material": [
+            "genuine leather"
+          ],
+          "budget": [
+            "under 100"
+          ],
+          "use_case": [
+            "daily walking"
+          ]
+        },
+        "soft_slots": {},
+        "max_price": 100
+      },
+      "elapsed_seconds": 7.84,
+      "tools": [
+        {
+          "step": 1,
+          "tool": "update_search_state"
+        },
+        {
+          "step": 2,
+          "tool": "search_products"
+        },
+        {
+          "step": 3,
+          "tool": "search_products"
+        },
+        {
+          "step": 3,
+          "tool": "search_products"
+        },
+        {
+          "step": 4,
+          "tool": "get_product_details"
+        },
+        {
+          "step": 5,
+          "tool": "finish"
+        }
+      ]
+    },
+    {
+      "session": "shopping",
+      "turn": 2,
+      "user_message": "改成黑色，材质仍然要真皮，预算不变。如果没有完全符合的商品请直接说明。",
+      "response": {
+        "message": "直接说明：**在检索到的候选里，没有一款能同时确认“黑色 + 真皮 + 价格 ≤100”三个硬性条件**，所以这次我不给推荐。\n\n具体卡在哪里：\n\n1. **Dockers Men's Gilmore Leather Casual Fashion Sneaker**（B082MTCQ6G，评分 4.4）\n   材质明确写“100% Leather / Genuine leather uppers”，但结果中**没有价格字段**，无法判断是否在 100 以内，颜色也未标注。→ 硬预算不满足（价格未知）。\n\n2. **Reebok Men's Club MEMT Sneaker, Black/DGH Solid Grey**（B0BR1RM8BS，评分 4.2）\n   标题显示黑色配色、标注 100% Leather，但同样**没有价格**，无法确认预算。→ 硬预算不满足（价格未知）。\n\n3. **B095ZSYL1P Marc Joseph New York 男士皮质运动鞋**（29.95，有价格、标注真皮/皮质鞋面）与 **B0C678YX1T ECCO Soft Classic Retro**（54.18，全粒面皮+麂皮）、**B085N6DCCF ROAN Henson**（43.33，全粒面皮）\n   价格和真皮都能对上，但检索结果中**没有黑色配色信息**（它们此前是作为通用款出现的），黑色无法确认。→ 颜色硬条件不满足。\n\n4. 另有一些看似“黑色”的款式（如 GOMNEAR 涂鸦高帮、Kelanda、各类 canvas 帆布鞋）是 PU 皮或帆布/网面，**不是真皮**，已排除。\n\n补充提醒：目录中的价格字段没有标注币种，我按原值引用，未做换算；目录也没有库存、折扣与尺码数据。\n\n如果想先推进，可以选一个方向放宽：\n- 放宽预算（允许价格未知的 Dockers Gilmore / Reebok Club MEMT 进入候选，需你到商品页确认实际价格）；\n- 或把黑色从“必须”改为“优先”，回到已确认真皮且 100 内的 ECCO、ROAN、Marc Joseph 三款里挑；\n- 也可以保留黑色+真皮，把预算提高后我再检索一次。\n\n告诉我放宽哪一项，我立刻重筛。",
+        "ask_attribute": null,
+        "recommendations": [],
+        "usage": {
+          "prompt_tokens": 46605,
+          "completion_tokens": 956
+        }
+      },
+      "checks": {
+        "no_fallback": true,
+        "live_token_usage": true,
+        "valid_catalog_ids": true,
+        "unique_ids": true,
+        "top_k": true,
+        "terminal_action": true,
+        "hard_budget_gate": true,
+        "hard_budget_prices": true,
+        "budget_preserved": true
+      },
+      "state": {
+        "category": "sneakers",
+        "route": "buying",
+        "hard_slots": {
+          "use_case": [
+            "daily walking"
+          ],
+          "color": [
+            "black"
+          ],
+          "material": [
+            "genuine leather"
+          ],
+          "budget": [
+            "under 100"
+          ]
+        },
+        "soft_slots": {},
+        "max_price": 100
+      },
+      "elapsed_seconds": 9.52,
+      "tools": [
+        {
+          "step": 1,
+          "tool": "update_search_state"
+        },
+        {
+          "step": 2,
+          "tool": "search_products"
+        },
+        {
+          "step": 3,
+          "tool": "search_products"
+        },
+        {
+          "step": 4,
+          "tool": "get_product_details",
+          "error": "Product ID was not observed; search before using it"
+        },
+        {
+          "step": 5,
+          "tool": "get_product_details",
+          "error": "Product ID was not observed; search before using it"
+        },
+        {
+          "step": 6,
+          "tool": "search_products"
+        },
+        {
+          "step": 7,
+          "tool": "finish"
+        }
+      ]
+    },
+    {
+      "session": "shopping",
+      "turn": 3,
+      "user_message": "先不买鞋了，换成一件纯棉T恤，预算30以内。之前鞋子的颜色和用途要求都取消。",
+      "response": {
+        "message": "已切换为 T 恤搜索，鞋子的黑色和走路用途要求已取消。现在条件是：纯棉 + 价格 ≤30。\n\n先说结论：**在检索到的候选里，只有一款能确认是 100% 棉且价格在 30 以内**，所以只推荐这一款。\n\n**推荐**\n- **Volcom Men's Crisp Stone Short Sleeve Tee**（B0C6BY2TSP，男士）\n  标注 **100% Cotton**，价格 **18.56**，评分 4.6（约 3637 条评价）。Basic fit、圆领短袖，正面印有 Volcom logo。材质、价格两项硬条件都能对上。\n  注：目录未标注颜色选项，也未标注可选尺码。\n\n**看着像但不是「纯棉」而被排除的候选**\n- Under Armour ABC Camo 长袖（29.99）：材质字段写 100% Knit，描述又称 cotton-blend，混纺且信息自相矛盾，不算纯棉 → 排除。\n- Game of Mahomes 印花T恤（22.00）：标注 100% Cotton 且价格达标，但评分只有 3.1（仅 4 条评价），描述内容与 T 恤不符（像是印品文案），可靠性存疑，仅作为备选信息，不列入推荐。\n- YTD 男士 Henley（24.99）：95% 棉 + 5% 氨纶，是混纺 Henley 长袖，不是纯棉 T 恤 → 排除。\n- V FOR CITY 背心（18.99）：95% 棉+5% 氨纶，且是背心 → 排除。\n- STYLEIE 印花T恤（21.99）、Sarin Mathews（24.99）、ANIXAY（24.99）：棉混纺/棉+氨纶 → 排除。\n- Natural Uniforms（12.95）：57% 棉+聚酯 + 氨纶 → 排除。\n- Clementine 女童 2 件装（15.42）：100% 棉且价格达标，但是**儿童款**，非成人 T 恤。\n\n提醒：目录价格字段没有标注币种，我按原值引用未换算；也没有库存、折扣信息。\n\n如果你想要女款、某个颜色、短袖/长袖，或者能接受「棉混纺（如 95% 棉）」把范围放宽一些，告诉我，我再按新条件检索一次。",
+        "ask_attribute": null,
+        "recommendations": [
+          {
+            "parent_asin": "B0C6BY2TSP",
+            "score": -10.41777289
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 29762,
+          "completion_tokens": 865
+        }
+      },
+      "checks": {
+        "no_fallback": true,
+        "live_token_usage": true,
+        "valid_catalog_ids": true,
+        "unique_ids": true,
+        "top_k": true,
+        "terminal_action": true,
+        "hard_budget_gate": true,
+        "hard_budget_prices": true,
+        "old_requirements_cleared": true
+      },
+      "state": {
+        "category": "t-shirt",
+        "route": "buying",
+        "hard_slots": {
+          "material": [
+            "cotton"
+          ],
+          "budget": [
+            "under 30"
+          ]
+        },
+        "soft_slots": {},
+        "max_price": 30
+      },
+      "elapsed_seconds": 7.33,
+      "tools": [
+        {
+          "step": 1,
+          "tool": "update_search_state"
+        },
+        {
+          "step": 2,
+          "tool": "search_products"
+        },
+        {
+          "step": 3,
+          "tool": "search_products"
+        },
+        {
+          "step": 4,
+          "tool": "get_product_details"
+        },
+        {
+          "step": 5,
+          "tool": "finish"
+        }
+      ]
+    },
+    {
+      "session": "clarification",
+      "turn": 1,
+      "user_message": "想给朋友买件衣服，但还没想好买什么。你需要先问我什么？",
+      "response": {
+        "message": "没问题，我先确认方向：你想买哪一类衣服（例如上衣/T恤、卫衣、外套、裤子等）？",
+        "ask_attribute": "category",
+        "recommendations": [],
+        "usage": {
+          "prompt_tokens": 2106,
+          "completion_tokens": 73
+        }
+      },
+      "checks": {
+        "no_fallback": true,
+        "live_token_usage": true,
+        "valid_catalog_ids": true,
+        "unique_ids": true,
+        "top_k": true,
+        "terminal_action": true,
+        "hard_budget_gate": true,
+        "hard_budget_prices": true,
+        "asked_for_clarification": true
+      },
+      "state": {
+        "category": "",
+        "route": "browsing",
+        "hard_slots": {},
+        "soft_slots": {},
+        "max_price": null
+      },
+      "elapsed_seconds": 0.73,
+      "tools": [
+        {
+          "step": 1,
+          "tool": "ask_user"
+        }
+      ]
+    }
+  ]
+}
