@@ -1,9 +1,11 @@
 # Shopping Copilot
 
-Shopping Copilot is an offline conversational retrieval system built for the
+Shopping Copilot is a conversational retrieval system built for the
 TechJam Conversational E-Commerce Search Challenge. It implements the official
-`starter.agent.Agent` interface and runs without an API key, hosted model, or
-network connection.
+`starter.agent.Agent` interface. The default `offline` mode runs without an API
+key or network connection. Optional `react` mode uses DeepSeek to choose tools,
+read their observations, and decide whether to search again, inspect products,
+clarify the request, or recommend.
 
 The agent keeps dialogue state across turns, distinguishes buying from browsing,
 handles intent changes, retrieves candidates through several lexical routes, and
@@ -11,7 +13,75 @@ reranks the merged pool. The submitted default uses a small logistic model and a
 adaptive first-turn deferral policy. Larger LambdaRank models are included for
 comparison but are not enabled by default.
 
-## Results
+## DeepSeek ReAct mode
+
+ReAct here means **model-directed action/observation iteration**, not the React
+frontend framework. The existing retrieval and reranking stack is exposed as
+tools; the model controls their order and repetition. No additional runtime
+dependency is required for the HTTP adapter.
+
+```text
+User + session state → LLM chooses a tool → validated local execution
+                             ↑                     ↓
+                             └──── observation ────┘
+                                  ↓
+                       ask_user / finish → response
+```
+
+Configure your key locally (do not commit it), then start an interactive session:
+
+```bash
+cp .env.example .env
+# Edit .env and set DEEPSEEK_API_KEY.
+set -a
+source .env
+set +a
+python3 scripts/demo_session.py --mode react --interactive --trace
+```
+
+Use `/reset` for a new conversation and `/quit` to exit. For example, start with
+`帮我找一双红色真皮运动鞋，预算100以内`, then change a requirement with
+`不要红色了，换黑色`. The model is instructed to translate search terms into English
+for this catalog and answer in the user's language. Search candidates are not
+guaranteed matches; the model must inspect evidence and disclose unknown facts.
+
+`deepseek-flash` and the endpoint follow the current
+[DeepSeek API documentation](https://api-docs.deepseek.com/); override
+`DEEPSEEK_MODEL` for another tool-capable model available to your account.
+The adapter uses the documented
+[non-thinking tool-call mode](https://api-docs.deepseek.com/guides/tool_calls/).
+ReAct does not require exposing private model reasoning.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SHOPPING_COPILOT_MODE` | `offline` | Choose `offline` or `react` |
+| `DEEPSEEK_API_KEY` | empty | Read only when making LLM requests |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | HTTPS API root; `/v1` is also supported |
+| `DEEPSEEK_MODEL` | `deepseek-flash` | Model with function calling |
+| `SHOPPING_COPILOT_MAX_STEPS` | `8` | Maximum LLM decisions per user turn (1–20) |
+| `SHOPPING_COPILOT_LLM_TIMEOUT` | `30` | Timeout in seconds for each HTTP attempt |
+| `SHOPPING_COPILOT_LLM_MAX_TOKENS` | `1600` | Maximum output tokens per decision |
+| `SHOPPING_COPILOT_LLM_FALLBACK` | `true` | On provider failure/step exhaustion, run the offline pipeline |
+
+`.env` loading is explicit; the library itself only reads environment variables.
+The HTTP client retries a timeout, HTTP 429 or 5xx once, but does not retry
+authentication failures. A turn can make up to eight decisions by default, with
+up to four tool calls per decision. The timeout applies per attempt, not to the
+whole turn. `usage` sums token counts from successfully parsed LLM responses,
+including those preceding an offline fallback. Failed/malformed API responses
+may still incur provider charges that cannot be counted locally.
+
+`agent.last_trace` contains tool names and observations; `agent.last_error`
+reports an offline fallback reason. Both describe the most recent call and stay
+outside the official response schema. For live integration debugging, disable
+fallback with `SHOPPING_COPILOT_LLM_FALLBACK=false` to surface `LLMError` directly.
+
+See [ReAct implementation and limits](docs/react.md) for tool contracts, Python
+configuration, failure handling, and tests. The metrics below describe the
+**offline baseline only**; ReAct quality, latency, and cost need separate live
+evaluation once a key is configured.
+
+## Offline results
 
 The table below reports the official deterministic evaluator on the 200-session
 public development set.
@@ -166,6 +236,8 @@ validation.
 ```text
 starter/agent.py                       evaluator entry point
 shopping_copilot/agent.py              turn orchestration and deferral policy
+shopping_copilot/llm.py                DeepSeek HTTP adapter and configuration
+shopping_copilot/react.py              model-directed tool loop and validation
 shopping_copilot/state.py              session state
 shopping_copilot/intent.py             intent routing
 shopping_copilot/slots.py              constraint extraction

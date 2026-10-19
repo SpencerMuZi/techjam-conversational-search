@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "techjam-shopping-copilot"
 version = "0.1.0"
-description = "Offline-first conversational shopping agent framework"
+description = "Conversational shopping agent with offline retrieval and optional DeepSeek ReAct orchestration"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

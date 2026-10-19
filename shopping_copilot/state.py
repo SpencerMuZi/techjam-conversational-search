@@ -19,6 +19,7 @@ class ConversationState:
     last_ask_attribute: str | None = None
     candidate_count: int = 0
     turn: int = 1
+    last_recommendations: dict[str, float] = field(default_factory=dict)
 
     def apply(self, parsed: ParsedTurn, user_message: str, turn: int) -> None:
         self.turn = turn
@@ -70,3 +71,7 @@ class SessionStore:
             return self._states[session_id]
         except KeyError as exc:
             raise RuntimeError("reset must be called before respond") from exc
+
+    def commit(self, state: ConversationState) -> None:
+        """Publish a completed ReAct turn; failed turns never modify live state."""
+        self._states[state.session_id] = state

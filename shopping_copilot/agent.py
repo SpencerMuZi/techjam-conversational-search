@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from .clarification import ClarificationPolicy
 from .config import AgentConfig
 from .context import ContextBuilder
 from .learned_reranker import default_reranker
+from .llm import ChatClient, DeepSeekClient, LLMConfig, LLMError
+from .react import ReActController
 from .retrieval import HybridRetriever
 from .slots import SlotExtractor
 from .state import SessionStore
@@ -16,7 +19,16 @@ from .state import SessionStore
 class ShoppingCopilotAgent:
     """Official API implementation backed by adaptive dialogue orchestration."""
 
-    def __init__(self, catalog_path: str | Path = "data/catalog.jsonl", config: AgentConfig | None = None) -> None:
+    def __init__(
+        self, catalog_path: str | Path = "data/catalog.jsonl", config: AgentConfig | None = None,
+        *, mode: str | None = None, llm_config: LLMConfig | None = None,
+        llm_client: ChatClient | None = None,
+    ) -> None:
+        self.mode = (mode or os.environ.get("SHOPPING_COPILOT_MODE", "offline")).lower()
+        if self.mode not in {"offline", "react"}:
+            raise ValueError("SHOPPING_COPILOT_MODE must be offline or react")
+        self.last_trace: list[dict] = []
+        self.last_error: str | None = None
         self.config = config or AgentConfig()
         self.sessions = SessionStore()
         self.extractor = SlotExtractor()
@@ -39,11 +51,36 @@ class ShoppingCopilotAgent:
             precise_seed=max(self.retriever.config.precise_seed, self.config.early_pool_depth),
             early_pool_enabled=False,
         )
+        self.controller = None
+        if self.mode == "react":
+            llm_config = llm_config or LLMConfig.from_env()
+            self.controller = ReActController(self, llm_client or DeepSeekClient(llm_config), llm_config)
 
     def reset(self, session_id: str, user_profile: dict) -> None:
         self.sessions.reset(session_id, user_profile)
 
     def respond(self, session_id: str, user_message: str, turn: int, top_k: int) -> dict:
+        top_k = max(1, min(int(top_k), 10))
+        self.last_trace = []
+        self.last_error = None
+        if self.controller is not None:
+            state = deepcopy(self.sessions.get(session_id))
+            try:
+                response = self.controller.run(state, user_message, turn, top_k)
+                self.sessions.commit(state)
+                return response
+            except LLMError as exc:
+                self.last_error = str(exc)
+                if not self.controller.config.fallback:
+                    raise
+            finally:
+                self.last_trace = deepcopy(self.controller.trace)
+            response = self._respond_offline(session_id, user_message, turn, top_k)
+            response["usage"] = dict(self.controller.usage)
+            return response
+        return self._respond_offline(session_id, user_message, turn, top_k)
+
+    def _respond_offline(self, session_id: str, user_message: str, turn: int, top_k: int) -> dict:
         state = self.sessions.get(session_id)
         parsed = self.extractor.parse(user_message, state.route, state.last_ask_attribute)
         state.apply(parsed, user_message, turn)
@@ -69,6 +106,8 @@ class ShoppingCopilotAgent:
             state, turn, ask_attribute, result.recommendations
         ):
             recommendations = []
+
+        state.last_recommendations = dict(recommendations)
 
         return {
             "message": message,

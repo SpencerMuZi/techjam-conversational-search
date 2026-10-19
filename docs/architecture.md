@@ -1,5 +1,10 @@
 # Agent architecture
 
+The default lifecycle below describes `offline` mode. In optional `react` mode,
+`ReActController` lets DeepSeek choose tools and observe their results until a
+clarification or final response is produced. See [ReAct architecture](react.md)
+for the loop, state updates, validation, rollback, and provider configuration.
+
 ## Request lifecycle
 
 The evaluator creates one `Agent` instance and calls `reset` before each session.
