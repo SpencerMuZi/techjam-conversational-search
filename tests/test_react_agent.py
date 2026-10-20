@@ -47,7 +47,7 @@ class ReActTest(unittest.TestCase):
 
     def agent(self, client, **options):
         agent = ShoppingCopilotAgent(self.catalog, mode="react", llm_client=client,
-                                     llm_config=LLMConfig(**options))
+                                     llm_config=LLMConfig(adaptive_workflow=False, **options))
         agent.reset("s", {"preference_tags": [], "summary": ""})
         return agent
 
@@ -94,7 +94,7 @@ class ReActTest(unittest.TestCase):
         state = agent.sessions.get("s")
         self.assertEqual(state.soft_slots, {"material": ["leather"], "color": ["red"]})
         self.assertEqual(len(state.history), 4)
-        self.assertTrue(any(m["content"] == "你喜欢什么颜色？" for m in client.messages[2]))
+        self.assertTrue(any(m["content"] == first["message"] for m in client.messages[2]))
 
     def test_repeated_search_is_chosen_by_model(self):
         client = ScriptedClient(

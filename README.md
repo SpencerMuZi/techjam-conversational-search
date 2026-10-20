@@ -3,9 +3,9 @@
 Shopping Copilot is a conversational retrieval system built for the
 TechJam Conversational E-Commerce Search Challenge. It implements the official
 `starter.agent.Agent` interface. The default `offline` mode runs without an API
-key or network connection. Optional `react` mode uses DeepSeek to choose tools,
-read their observations, and decide whether to search again, inspect products,
-clarify the request, or recommend.
+key or network connection. `llm_parse` adds DeepSeek extraction to the existing
+ranker and dialogue policy. `react` adds a conditional tool loop for insufficient
+or conflicting results.
 
 The agent keeps dialogue state across turns, distinguishes buying from browsing,
 handles intent changes, retrieves candidates through several lexical routes, and
@@ -16,16 +16,16 @@ comparison but are not enabled by default.
 ## DeepSeek ReAct mode
 
 ReAct here means **model-directed action/observation iteration**, not the React
-frontend framework. The existing retrieval and reranking stack is exposed as
-tools; the model controls their order and repetition. No additional runtime
-dependency is required for the HTTP adapter.
+frontend framework. Compact LLM extraction preserves original phrases, then the
+existing retrieval, Logistic ordering and clarification policy run. Informative
+requests use this fast path; insufficient/conflicting results enter a model-led
+tool loop. No additional runtime dependency is required for the HTTP adapter.
 
 ```text
-User + session state → LLM chooses a tool → validated local execution
-                             ↑                     ↓
-                             └──── observation ────┘
-                                  ↓
-                       ask_user / finish → response
+User + state → LLM extraction + original words → retrieval + Logistic
+                                                 ↓
+                     sufficient → candidates + structured question
+                     conflict → ReAct actions / observations → response
 ```
 
 Configure your key locally (do not commit it), then start an interactive session:
@@ -54,20 +54,23 @@ ReAct does not require exposing private model reasoning.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `SHOPPING_COPILOT_MODE` | `offline` | Choose `offline` or `react` |
+| `SHOPPING_COPILOT_MODE` | `offline` | `offline`, `llm_parse`, or `react` |
 | `DEEPSEEK_API_KEY` | empty | Read only when making LLM requests |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | HTTPS API root; `/v1` is also supported |
 | `DEEPSEEK_MODEL` | `deepseek-flash` | Model with function calling |
-| `SHOPPING_COPILOT_MAX_STEPS` | `8` | Maximum LLM decisions per user turn (1–20) |
+| `SHOPPING_COPILOT_MAX_STEPS` | `8` | Maximum exploration decisions after extraction (1–20) |
 | `SHOPPING_COPILOT_LLM_TIMEOUT` | `30` | Timeout in seconds for each HTTP attempt |
 | `SHOPPING_COPILOT_LLM_MAX_TOKENS` | `1600` | Maximum output tokens per decision |
 | `SHOPPING_COPILOT_LLM_FALLBACK` | `true` | On provider failure/step exhaustion, run the offline pipeline |
+| `SHOPPING_COPILOT_RANKING_POLICY` | `logistic` | Preserve local order; `llm_filter` is experimental |
+| `SHOPPING_COPILOT_QUERY_EXPANSION` | `false` | Enable automatic additional recall from LLM parsing |
 
 `.env` loading is explicit; the library itself only reads environment variables.
 The HTTP client retries a timeout, HTTP 429 or 5xx once, but does not retry
-authentication failures. A turn can make up to eight decisions by default, with
-up to four tool calls per decision. The timeout applies per attempt, not to the
-whole turn. `usage` sums token counts from successfully parsed LLM responses,
+authentication failures. Extraction normally takes one call, with one validation
+retry. If needed, up to eight additional exploration decisions run, with up to
+four tool calls per decision. Timeout applies per attempt, not to the whole
+turn. `usage` sums token counts from successfully parsed LLM responses,
 including those preceding an offline fallback. Failed/malformed API responses
 may still incur provider charges that cannot be counted locally.
 
@@ -78,8 +81,20 @@ fallback with `SHOPPING_COPILOT_LLM_FALLBACK=false` to surface `LLMError` direct
 
 See [ReAct implementation and limits](docs/react.md) for tool contracts, Python
 configuration, failure handling, and tests. The metrics below describe the
-**offline baseline only**; ReAct quality, latency, and cost need separate live
-evaluation once a key is configured.
+**offline baseline only**. See [the paired small-batch experiment](docs/llm_optimization.md)
+for live scores, sample selection and token use. To run a cached comparison:
+
+```bash
+python3 scripts/compare_llm_modes.py --env-file .env \
+  --output artifacts/llm-ablation --samples 20 --filter-samples 5 \
+  --workers 2 --max-api-calls 250
+```
+
+The same sampled sessions compare offline, LLM parsing, adaptive ReAct and
+automatic expansion. Filtering is tested on a five-session subset. Identical
+requests reuse a local response cache; replayed tokens are separated from new
+API use. Original queries stay active, and explicit ReAct searches still add a
+recall route when automatic expansion is off.
 
 ## Offline results
 

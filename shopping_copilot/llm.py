@@ -27,6 +27,9 @@ class LLMConfig:
     max_steps: int = 8
     max_retries: int = 1
     fallback: bool = True
+    adaptive_workflow: bool = True
+    ranking_policy: str = "logistic"
+    expansion_enabled: bool = False
 
     def __post_init__(self) -> None:
         url = urlsplit(self.base_url)
@@ -41,6 +44,8 @@ class LLMConfig:
                 raise ValueError(f"Invalid LLM {name}")
         if not self.model.strip():
             raise ValueError("LLM model must not be empty")
+        if self.ranking_policy not in {"logistic", "llm_filter"}:
+            raise ValueError("Ranking policy must be logistic or llm_filter")
 
     @classmethod
     def from_env(cls) -> LLMConfig:
@@ -52,6 +57,8 @@ class LLMConfig:
             max_tokens=int(os.environ.get("SHOPPING_COPILOT_LLM_MAX_TOKENS", "1600")),
             max_steps=int(os.environ.get("SHOPPING_COPILOT_MAX_STEPS", "8")),
             fallback=os.environ.get("SHOPPING_COPILOT_LLM_FALLBACK", "true").lower() in {"true", "1", "yes"},
+            ranking_policy=os.environ.get("SHOPPING_COPILOT_RANKING_POLICY", "logistic"),
+            expansion_enabled=os.environ.get("SHOPPING_COPILOT_QUERY_EXPANSION", "false").lower() in {"true", "1", "yes"},
         )
 
 

@@ -1,9 +1,10 @@
 # Agent architecture
 
-The default lifecycle below describes `offline` mode. In optional `react` mode,
-`ReActController` lets DeepSeek choose tools and observe their results until a
-clarification or final response is produced. See [ReAct architecture](react.md)
-for the loop, state updates, validation, rollback, and provider configuration.
+The default lifecycle below describes `offline` mode. `llm_parse` adds grounded
+LLM extraction while retaining this ranking and dialogue policy. `react` adds
+conditional model-directed exploration for insufficient/conflicting results;
+the fast path returns candidates plus a structured question. See
+[ReAct architecture](react.md) for ranking preservation, validation and rollback.
 
 ## Request lifecycle
 

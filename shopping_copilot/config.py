@@ -32,6 +32,7 @@ class AgentConfig:
     rrf_k: int = 60
     clarification_candidate_cutoff: int = 20
     max_query_terms: int = 48
+    expansion_weight: float = 0.6
     # Load the stdlib-only linear reranker by default. Set False, or use
     # SHOPPING_COPILOT_RERANKER=manual, to fall back to the structured score.
     learned_reranker: bool = True

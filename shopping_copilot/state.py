@@ -21,6 +21,7 @@ class ConversationState:
     turn: int = 1
     last_recommendations: dict[str, float] = field(default_factory=dict)
     max_price: float | None = None
+    query_expansions: list[str] = field(default_factory=list)
 
     def apply(self, parsed: ParsedTurn, user_message: str, turn: int) -> None:
         self.turn = turn

@@ -23,7 +23,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a headless multi-turn Agent demo")
     parser.add_argument("--catalog", default="data/catalog.jsonl")
     parser.add_argument("--message", action="append", dest="messages")
-    parser.add_argument("--mode", choices=["offline", "react"], default=None)
+    parser.add_argument("--mode", choices=["offline", "llm_parse", "react"], default=None)
     parser.add_argument("--interactive", action="store_true", help="Chat until /quit; /reset starts a new session")
     parser.add_argument("--trace", action="store_true", help="Print actions and observations (no private reasoning)")
     args = parser.parse_args()

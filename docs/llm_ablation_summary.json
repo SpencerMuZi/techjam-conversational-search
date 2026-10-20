@@ -1,0 +1,239 @@
+{
+  "model": "deepseek-flash",
+  "seed": 20261020,
+  "sample_ids": [
+    "public_0007",
+    "public_0009",
+    "public_0025",
+    "public_0027",
+    "public_0041",
+    "public_0043",
+    "public_0052",
+    "public_0060",
+    "public_0072",
+    "public_0081",
+    "public_0085",
+    "public_0088",
+    "public_0092",
+    "public_0107",
+    "public_0124",
+    "public_0149",
+    "public_0153",
+    "public_0183",
+    "public_0193",
+    "public_0199"
+  ],
+  "scenario_counts": {
+    "buying": 8,
+    "browsing": 8,
+    "intent_override": 3,
+    "boundary": 1
+  },
+  "historical_react_same_20": {
+    "sample_count": 20,
+    "hit_rate_at_10": 0.9,
+    "mrr": 0.601667,
+    "mttc": 4.25,
+    "recommended_technical_score": 0.7655,
+    "known_usage": {
+      "prompt_tokens": 1017332,
+      "completion_tokens": 32679
+    }
+  },
+  "arms": {
+    "llm_parse": {
+      "sample_count": 20,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.713889,
+      "mttc": 2.3,
+      "efficiency": 0.87,
+      "recommended_technical_score": 0.888167,
+      "actual_usage": {
+        "cache_hits": 46,
+        "replayed_prompt_tokens": 72839,
+        "replayed_completion_tokens": 3337
+      },
+      "error_turns": 0
+    },
+    "react_expansion": {
+      "sample_count": 20,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.705556,
+      "mttc": 2.25,
+      "efficiency": 0.875,
+      "recommended_technical_score": 0.886667,
+      "actual_usage": {
+        "cache_hits": 45,
+        "replayed_prompt_tokens": 71196,
+        "replayed_completion_tokens": 3292
+      },
+      "error_turns": 0
+    },
+    "react": {
+      "sample_count": 20,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.713889,
+      "mttc": 2.3,
+      "efficiency": 0.87,
+      "recommended_technical_score": 0.888167,
+      "actual_usage": {
+        "cache_hits": 46,
+        "replayed_prompt_tokens": 72839,
+        "replayed_completion_tokens": 3337
+      },
+      "error_turns": 0
+    },
+    "offline": {
+      "sample_count": 20,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.713889,
+      "mttc": 2.3,
+      "efficiency": 0.87,
+      "recommended_technical_score": 0.888167,
+      "actual_usage": {},
+      "error_turns": 0
+    },
+    "react_llm_filter": {
+      "sample_count": 5,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.766667,
+      "mttc": 2.6,
+      "efficiency": 0.84,
+      "recommended_technical_score": 0.898,
+      "actual_usage": {
+        "cache_hits": 53,
+        "replayed_prompt_tokens": 445823,
+        "replayed_completion_tokens": 11465
+      },
+      "error_turns": 0
+    }
+  },
+  "filter_same_5": {
+    "llm_parse": {
+      "sample_count": 5,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.533333,
+      "mttc": 2.2,
+      "efficiency": 0.88,
+      "recommended_technical_score": 0.836,
+      "actual_usage": {
+        "cache_hits": 11,
+        "replayed_prompt_tokens": 17383,
+        "replayed_completion_tokens": 879
+      },
+      "error_turns": 0
+    },
+    "react_expansion": {
+      "sample_count": 5,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.533333,
+      "mttc": 2.2,
+      "efficiency": 0.88,
+      "recommended_technical_score": 0.836,
+      "actual_usage": {
+        "cache_hits": 11,
+        "replayed_prompt_tokens": 17383,
+        "replayed_completion_tokens": 879
+      },
+      "error_turns": 0
+    },
+    "react": {
+      "sample_count": 5,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.533333,
+      "mttc": 2.2,
+      "efficiency": 0.88,
+      "recommended_technical_score": 0.836,
+      "actual_usage": {
+        "cache_hits": 11,
+        "replayed_prompt_tokens": 17383,
+        "replayed_completion_tokens": 879
+      },
+      "error_turns": 0
+    },
+    "offline": {
+      "sample_count": 5,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.533333,
+      "mttc": 2.2,
+      "efficiency": 0.88,
+      "recommended_technical_score": 0.836,
+      "actual_usage": {},
+      "error_turns": 0
+    },
+    "react_llm_filter": {
+      "sample_count": 5,
+      "hit_rate_at_10": 1.0,
+      "mrr": 0.766667,
+      "mttc": 2.6,
+      "efficiency": 0.84,
+      "recommended_technical_score": 0.898,
+      "actual_usage": {
+        "cache_hits": 53,
+        "replayed_prompt_tokens": 445823,
+        "replayed_completion_tokens": 11465
+      },
+      "error_turns": 0
+    }
+  },
+  "common_retrieval_contexts": {
+    "pairs": 37,
+    "raw_hits": 27,
+    "expanded_hits": 29,
+    "gains": 2,
+    "losses": 0
+  },
+  "logical_usage_including_cache_replay": {
+    "llm_parse": {
+      "prompt_tokens": 72839,
+      "completion_tokens": 3337
+    },
+    "react_expansion": {
+      "prompt_tokens": 71196,
+      "completion_tokens": 3292
+    },
+    "react": {
+      "prompt_tokens": 72839,
+      "completion_tokens": 3337
+    },
+    "offline": {
+      "prompt_tokens": 0,
+      "completion_tokens": 0
+    },
+    "react_llm_filter": {
+      "prompt_tokens": 445823,
+      "completion_tokens": 11465
+    }
+  },
+  "actual_new_usage_all_development_and_smoke": {
+    "api_calls": 117,
+    "prompt_tokens": 694141,
+    "completion_tokens": 19178
+  },
+  "default_fast_path_turns": 46,
+  "unit_tests": 54,
+  "chinese_smoke_turns": 2,
+  "offline_200_regression_score": 0.9046,
+  "source_sha256": {
+    "shopping_copilot/__init__.py": "a933447d0253a798a833fdb030626c67c6c12a124adf98dc541d4c4d6ea42d90",
+    "shopping_copilot/agent.py": "2d22605f1d79e207b0c8a23f249946860da9508a927a47c39cdf395cc28dbec7",
+    "shopping_copilot/budgets.py": "c38e249753975c985566b099d5cf9091ddea7171345282b59d58bbf8d660aae7",
+    "shopping_copilot/clarification.py": "054d7b379363514a843de807a404e5c96ce52a7f66ba6507e18f085952800e92",
+    "shopping_copilot/config.py": "b2c6a5d47f37a8fb17512b3d796bbdf2bcd2051deb5b55bc3ef15be041c41eef",
+    "shopping_copilot/context.py": "f3089cc0612edb31e211a5e482c0b536597c0d57399fa16cd4ae47c079cb4b53",
+    "shopping_copilot/features.py": "90a21c2300e42045c0c42f458c5327ed7907f4842ebfe7952ae9c83c0104c1e1",
+    "shopping_copilot/intent.py": "589e4cb5995bcac60a2fb57a0add8aefdcba2c749da14527b9f278b053ccfa0d",
+    "shopping_copilot/learned_reranker.py": "d47b62165384f73eb78ad284f1a304519b166d1d18de33e3884636e8bc468606",
+    "shopping_copilot/llm.py": "833742eef25bdfacf2f176a459d9748a0b300cbe23182937b5bf16b000e11d63",
+    "shopping_copilot/llm_workflow.py": "d55586fba41c9da8f557f1b2219ed9e0c7280aa182ce12266119dd97d1405a3b",
+    "shopping_copilot/models.py": "e24695143a9322c234f1fa37d7b6354183e26edef5fc96c8675fcf20529eeea1",
+    "shopping_copilot/react.py": "29723de41f9e2cb350d83a57e26f03bb2c478d5986fdea83aeeaa36359de1d9d",
+    "shopping_copilot/rerankers.py": "4236df632e42023f5a47891b845444c87b70cf44fac8a9082619fd6411aa6d55",
+    "shopping_copilot/responses.py": "c286a639c6ea43d0b52edad0d9d9e924b1e38e07c875d77ab01cbfb9d72e26b4",
+    "shopping_copilot/retrieval.py": "028ebd9b8194d9aed3e7765b7d462aaa5b3ac8ebbf05909c351be731f771ea2e",
+    "shopping_copilot/semantic.py": "a01674a2b3c6415b062e84e57b74b8c63c41ba6441bfdfa83104c94f6e1f5a5a",
+    "shopping_copilot/slots.py": "acdabe1775fe5997c3f9aec82e523f13971cfb9eeac050eb012a576d0b48a855",
+    "shopping_copilot/state.py": "5deb8dcbf5a309f6a9e0b2463cb3aeb8e178721f973a800e4364aa63639ed5a7",
+    "scripts/compare_llm_modes.py": "aecbedbbc623df779f09423240f3de255412ea689b8e16501387a298066e54d7"
+  }
+}

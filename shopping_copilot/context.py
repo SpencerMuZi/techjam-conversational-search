@@ -17,4 +17,5 @@ class ContextBuilder:
             profile_tags=profile_tags,
             current_message=current_message,
             turn=state.turn,
+            expansion_queries=tuple(state.query_expansions),
         )

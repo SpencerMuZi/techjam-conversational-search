@@ -37,6 +37,7 @@ class SearchContext:
     profile_tags: tuple[str, ...]
     current_message: str
     turn: int = 1
+    expansion_queries: tuple[str, ...] = ()
 
     @property
     def hard_values(self) -> tuple[str, ...]:

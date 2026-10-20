@@ -1,114 +1,124 @@
-# DeepSeek ReAct agent
+# DeepSeek parsing and adaptive ReAct
 
-## Control flow
+## Modes
 
-`starter.agent.Agent` still exports `reset` and `respond`. Select `react` via
-`SHOPPING_COPILOT_MODE` or the constructor. In this mode, each user turn creates
-a bounded model/action/observation loop rather than running a fixed sequence.
-The model sees recent dialogue, structured needs, the anonymized profile, and
-previously displayed recommendations. It chooses one or more tools, receives
-their results as `role=tool` messages associated with `tool_call_id`, then
-chooses again. Retrieval is not mandatory before asking a question, and can be
-repeated with different queries after inspecting results.
+| Mode | Extraction | Ranking | Dialogue control |
+| --- | --- | --- | --- |
+| `offline` | Original rules | Existing multi-route retrieval and ranker | Original clarification and first-turn deferral |
+| `llm_parse` | LLM plus original-word evidence anchoring | Same ranking, no automatic expansion | Same verified policy |
+| `react` | Same parsing | Same local ranking and hard-budget filter | Fast path when sufficient; ReAct when insufficient or conflicting |
+
+This is an adaptive workflow with a conditional ReAct sub-loop. The fixed fast
+path is not autonomous planning. Within exploration, the model reads tool
+observations and selects subsequent actions, their order and repetition. There
+is no separate Plan-and-Execute planner.
+
+Extraction normally needs one compact API call, with one validation retry.
+Mechanically extractable English category and requirement phrases anchor the
+state instead of being replaced by model paraphrases. Quoted additions persist
+across ordinary turns; explicit overrides clear abandoned needs. Unstructured
+language still relies on LLM parsing. The model receives state and recent history,
+never the evaluator's hidden target or intent card.
+
+## Candidates plus a structured question
+
+Both terminal tools support ranked candidates plus one follow-up. `finish`
+accepts `ask_attribute` and `question` together. A question in `message` is
+rejected. The renderer appends one canonical English/Chinese question based on
+`ask_attribute`, preventing a sleeve-length question from being labeled `other`.
+Declined attributes cannot be asked again.
+
+Default `ranking_policy=logistic` returns up to ten eligible locally ranked
+candidates even when the model proposes only two or three IDs. Model scores and
+ordering do not replace local scores. `llm_filter` is an explicit experiment:
+it may filter IDs, but still retains local score order. It is off by default.
+Candidates are catalog-grounded, not proof of satisfying every constraint.
+
+A strict hard ceiling requires numeric `max_price`. Unknown, invalid and excessive
+prices are excluded, with backfill from a 50-candidate ranked pool. Approximate
+prices such as `around $40` are not converted to invented ceilings. Category
+changes and no-preference updates clear abandoned ceilings. Other semantic
+constraints still depend on extraction and evidence checks.
+
+## Original query and additional recall
+
+The original message, original category and cumulative verbatim constraints
+remain primary retrieval/ranking evidence. Optional translations or synonyms
+form additional recall routes; route ranks enter weighted RRF. Heads of the
+original precise routes and expansion routes reach the same rerank pool, using
+the existing feature vector and packaged Logistic model.
+
+Automatic parsing-time expansion defaults to off because the initial paired
+sample showed no net benefit. Enable `SHOPPING_COPILOT_QUERY_EXPANSION=true` to
+experiment. An explicit ReAct `search_products(query)` always adds its query as a
+recall route while keeping the original context; disabling automatic expansion
+does not disable purposeful ReAct searches.
+
+## Exploration tools
 
 | Tool | Action |
 | --- | --- |
-| `update_search_state` | Set category/intent; replace or remove hard/soft attributes; record no preference; clear abandoned needs |
-| `search_products` | Query existing BM25 routes → RRF → configured reranker; return up to 10 candidate summaries |
-| `get_product_details` | Return more catalog evidence for up to 5 observed product IDs |
-| `ask_user` | Finish the current turn with a question and allowed `ask_attribute` |
-| `finish` | Finish with a message and ordered observed product IDs; scores come from the local reranker |
+| `update_search_state` | Update hard/soft needs, category, intent, budget and no-preference markers |
+| `search_products` | Add the selected search query, fuse and locally rerank |
+| `get_product_details` | Read catalog evidence for up to five observed IDs |
+| `ask_user` | Return eligible candidates and an attribute-based question |
+| `finish` | Return eligible candidates and optionally one structured question |
 
-The last two tools are terminal and must be called alone. The controller does
-not invent model decisions or run a predetermined search/details/question sequence.
-Tests use a scripted client to verify orchestration; a real DeepSeek client makes
-the live decisions. This is a tool-based ReAct implementation, without a
-separate Plan-and-Execute planner or a frontend React application.
+Terminal tools must be called alone. Names, JSON arguments, bounds, IDs and
+duplicates are validated. Validation errors become observations the model can
+repair. Moving a slot into hard requirements while explicitly clearing its old
+soft bucket is valid; conflicting nonempty hard/soft values are rejected.
 
-## State and validation
+The fast path reuses `ClarificationPolicy` and the original adaptive deferral.
+The conflict check uses the existing lexical matcher on leading candidates; it
+is a heuristic, not formal verification. A missing ceiling causes a question
+rather than repeated searches. Sufficient results avoid extra LLM decisions.
 
-The model handles natural-language extraction through `update_search_state`.
-Each supplied slot array replaces that attribute's previous values; an empty
-array removes it. A hard/soft update also removes the opposite kind for the same
-attribute. Categories changing or `clear=true` clear earlier needs, declined
-attributes, and question bookkeeping. `clear=true` without a category also
-clears the category. A no-preference update removes existing constraints for
-the attribute and prevents a later question about it. Untouched attributes persist.
-
-State updates invalidate observed recommendation IDs, requiring a fresh search.
-The controller validates tool names, JSON arguments, allowed fields/types,
-string/array bounds, duplicate IDs, observed IDs and `top_k`. A validation error
-becomes an observation so the model can repair its action on the next decision.
-Product IDs, rank scores and product facts originate in the local catalog/tools.
-A hard budget requires an explicit numeric `max_price` before recommending.
-The terminal tool rejects unknown, invalid or over-limit prices; changing a hard
-budget resets the previous ceiling unless a replacement is supplied. Category
-changes and no-preference updates clear it. `max_price=null` clears the ceiling.
-Other constraint satisfaction and the semantic correctness of prose rely on
-model verification, rather than a formal filter. Prices in the catalog may lack
-currency; the assistant must not invent it.
-
-The active turn runs against a copy of session state. Only `ask_user` or `finish`
-commits it. A provider/protocol failure or exhausted step limit discards partial
-changes before the existing offline pipeline handles the original user message.
-With fallback disabled, `LLMError` propagates and the session remains unchanged.
-Fallback uses the baseline's rule parser, whose unrestricted-language coverage
-is limited. The interactive demo explicitly prints the fallback reason.
-
-## Python usage
+## Configuration and failure handling
 
 ```python
 import os
 from starter.agent import Agent
 from shopping_copilot.llm import LLMConfig
 
-agent = Agent(
-    "data/catalog.jsonl",
-    mode="react",
-    llm_config=LLMConfig(
-        api_key=os.environ["DEEPSEEK_API_KEY"],
-        model=os.environ.get("DEEPSEEK_MODEL", "deepseek-flash"),
-        max_steps=8,
-        fallback=False,
-    ),
-)
+agent = Agent("data/catalog.jsonl", mode="react", llm_config=LLMConfig(
+    api_key=os.environ["DEEPSEEK_API_KEY"], model="deepseek-flash",
+    ranking_policy="logistic", expansion_enabled=False, fallback=False,
+))
 agent.reset("customer-1", {"summary": "", "preference_tags": []})
-response = agent.respond("customer-1", "想买红色真皮运动鞋", turn=1, top_k=10)
-print(response)
-print(agent.last_trace)
+response = agent.respond("customer-1", "想买真皮运动鞋，预算100以内", 1, 10)
 ```
 
-For testing or another provider adapter, inject `llm_client` implementing
-`complete(messages, tools) -> LLMReply`. The supplied DeepSeek adapter uses HTTPS
-Chat Completions, `tool_choice=required`, and `thinking.type=disabled` as described
-in [DeepSeek's tool-call guide](https://api-docs.deepseek.com/guides/tool_calls/).
-It keeps only the assistant content and function-call fields, and never returns
-or logs `reasoning_content`. Actions/observations provide the execution trace.
-Keys are excluded from configuration representations and provider response
-bodies are not included in errors. Trace observations can contain conversation
-and product data; store them only according to the application's logging policy.
+State changes run against a copy and commit once after a completed fast response
+or terminal tool. Provider/protocol failure rolls back before optional offline
+fallback. Disable fallback for live evaluation. The fallback rule parser has
+limited open-language coverage. `last_trace` records parsing, retrieval, the
+exploration gate, actions and policy output outside the official response schema.
 
-## Verification and remaining limits
+The adapter follows [DeepSeek's non-thinking tool-call protocol](https://api-docs.deepseek.com/guides/tool_calls/).
+It does not log API keys or private `reasoning_content`. Timeout is per HTTP
+attempt, not a turn deadline. A turn may use up to two extraction calls plus
+`max_steps` further decisions (default eight). Timeouts, 429 and 5xx responses
+retry once; authentication errors do not. Usage sums parsed responses, including
+those preceding a later failure. Unparsed provider charges may remain unknown.
+
+State is in memory. Use each SQLite-based instance serially; benchmark processes
+own separate instances. Exploration uses six recent history messages (1,600
+characters each), structured state and truncated product evidence. No purchase,
+payment or web-search action is included.
+
+## Verification
 
 ```bash
-python3 -m unittest tests.test_react_agent -v
 python3 -m unittest discover -v
-python3 -m evaluator.local_evaluator --output results.json
+python3 scripts/compare_llm_modes.py --env-file .env \
+  --output artifacts/llm-ablation --samples 20 --filter-samples 5 \
+  --workers 2 --max-api-calls 250
 ```
 
-The full suite needs the repository's runtime/experiment dependencies. The
-ReAct tests alone use only the standard library and a three-product fixture.
-They cover observation-dependent action selection, search repetition, asking
-before search, multi-turn follow-ups, replacing needs, intent/category changes,
-invalid JSON, unknown tools, hallucinated/stale IDs, terminal batches, token
-usage, transport retries, missing credentials, rollback, and the step limit.
-
-The public offline scores do not evaluate this LLM mode. Live extraction,
-instruction robustness, response grounding, latency and cost require additional
-evaluation with an actual account/key. The tool loop is bounded, but timeout is
-per HTTP attempt rather than a global turn deadline. Prompt history is limited
-to the last 12 messages (4,000 characters each), plus structured state; product
-fields are truncated. State is in memory and not durable across process restarts.
-Like the existing SQLite-based agent, use an instance serially; concurrent
-service workers should own separate instances. No web search, purchase, payment,
-or other external action tool is included.
+The small benchmark fixes stratified sample IDs, reuses identical API responses,
+preserves official scoring, and separates new usage from cached replay. It also
+compares expansion/no-expansion at common retrieval contexts without extra API
+calls; those diagnostics are not a replacement for full-session comparisons.
+Raw outputs remain in ignored `artifacts/`. See the
+[paired experiment report](llm_optimization.md) for results and limitations.

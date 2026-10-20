@@ -267,6 +267,13 @@ class HybridRetriever:
             (weights.constraints, constraint_ranked),
             (weights.semantic, [asin for asin, _ in semantic_rows]),
         ]
+        # Expansion is an additive recall route. Original words still determine
+        # keyword/constraint signals and the existing Logistic feature vector.
+        expansion_ranked: list[list[str]] = []
+        for query in context.expansion_queries[:3]:
+            ranked = self.index.search_fts(query, depth)
+            expansion_ranked.append(ranked)
+            routes.append((config.expansion_weight, ranked))
 
         fused: dict[str, float] = {}
         for weight, ranked in routes:
@@ -296,7 +303,7 @@ class HybridRetriever:
         # Guarantee the head of each precise route reaches the reranker even if a
         # thin fused score would otherwise drop it below the rerank cutoff.
         seen = set(initial)
-        for ranked in (keyword_ranked, constraint_ranked):
+        for ranked in (keyword_ranked, constraint_ranked, *expansion_ranked):
             for parent_asin in ranked[: config.precise_seed]:
                 if parent_asin not in seen and parent_asin in self.index.documents:
                     seen.add(parent_asin)

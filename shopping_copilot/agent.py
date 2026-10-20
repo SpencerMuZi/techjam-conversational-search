@@ -11,6 +11,7 @@ from .context import ContextBuilder
 from .learned_reranker import default_reranker
 from .llm import ChatClient, DeepSeekClient, LLMConfig, LLMError
 from .react import ReActController
+from .llm_workflow import LLMWorkflow
 from .retrieval import HybridRetriever
 from .slots import SlotExtractor
 from .state import SessionStore
@@ -25,8 +26,8 @@ class ShoppingCopilotAgent:
         llm_client: ChatClient | None = None,
     ) -> None:
         self.mode = (mode or os.environ.get("SHOPPING_COPILOT_MODE", "offline")).lower()
-        if self.mode not in {"offline", "react"}:
-            raise ValueError("SHOPPING_COPILOT_MODE must be offline or react")
+        if self.mode not in {"offline", "llm_parse", "react"}:
+            raise ValueError("SHOPPING_COPILOT_MODE must be offline, llm_parse or react")
         self.last_trace: list[dict] = []
         self.last_error: str | None = None
         self.config = config or AgentConfig()
@@ -52,7 +53,7 @@ class ShoppingCopilotAgent:
             early_pool_enabled=False,
         )
         self.controller = None
-        if self.mode == "react":
+        if self.mode != "offline":
             llm_config = llm_config or LLMConfig.from_env()
             self.controller = ReActController(self, llm_client or DeepSeekClient(llm_config), llm_config)
 
@@ -66,7 +67,10 @@ class ShoppingCopilotAgent:
         if self.controller is not None:
             state = deepcopy(self.sessions.get(session_id))
             try:
-                response = self.controller.run(state, user_message, turn, top_k)
+                if self.controller.config.adaptive_workflow:
+                    response = LLMWorkflow(self).run(state, user_message, turn, top_k)
+                else:
+                    response = self.controller.run(state, user_message, turn, top_k)
                 self.sessions.commit(state)
                 return response
             except LLMError as exc:
@@ -86,15 +90,7 @@ class ShoppingCopilotAgent:
         state.apply(parsed, user_message, turn)
 
         context = self.context_builder.build(state, user_message)
-        result = self.retriever.retrieve(context, max(1, min(int(top_k), 10)))
-        if self._should_probe_early_pool(turn, parsed.is_override):
-            expanded = self.retriever.retrieve(context, 2, self._early_config)
-            result = self._promote_confident_early_top(
-                result,
-                expanded,
-                max(1, min(int(top_k), 10)),
-                self.config.early_pool_margin,
-            )
+        result = self.retrieve_with_policy(context, turn, top_k, parsed.is_override)
         state.candidate_count = result.candidate_count
 
         ask_attribute = self.clarification.choose(state, turn)
@@ -102,22 +98,26 @@ class ShoppingCopilotAgent:
         state.record_response(message, ask_attribute)
 
         recommendations = result.recommendations
-        if self._should_defer_recommendations(
-            state, turn, ask_attribute, result.recommendations
-        ):
+        if self._should_defer_recommendations(state, turn, ask_attribute, recommendations):
             recommendations = []
-
         state.last_recommendations = dict(recommendations)
-
         return {
-            "message": message,
-            "ask_attribute": ask_attribute,
-            "recommendations": [
-                {"parent_asin": parent_asin, "score": round(score, 8)}
-                for parent_asin, score in recommendations
-            ],
+            "message": message, "ask_attribute": ask_attribute,
+            "recommendations": [{"parent_asin": asin, "score": round(score, 8)} for asin, score in recommendations],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         }
+
+    def retrieve_with_policy(self, context, turn: int, top_k: int, is_override: bool):
+        result = self.retriever.retrieve(context, top_k)
+        if self._should_probe_early_pool(turn, is_override):
+            expanded = self.retriever.retrieve(context, 2, self._early_config)
+            result = self._promote_confident_early_top(
+                result,
+                expanded,
+                top_k,
+                self.config.early_pool_margin,
+            )
+        return result
 
     def _should_probe_early_pool(self, turn: int, is_override: bool) -> bool:
         reranker = self.retriever.reranker
